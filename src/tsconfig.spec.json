@@ -3,7 +3,6 @@
   "compilerOptions": {
     "outDir": "../out-tsc/spec",
     "baseUrl": "./",
-    "module": "commonjs",
     "target": "es5",
     "types": [
       "jasmine",
@@ -11,7 +10,13 @@
     ],
     "paths": {
       "@nebular/*": [
-        "./framework/*"
+        "./framework/*/public_api.ts"
+      ],
+      "@nebular/theme/*": [
+        "./framework/theme/*"
+      ],
+      "@nebular/auth/*": [
+        "./framework/auth/*"
       ]
     }
   },
@@ -22,5 +27,8 @@
   "include": [
     "**/*.spec.ts",
     "**/*.d.ts"
+  ],
+  "exclude": [
+    "**/schematics/**/*.spec.ts"
   ]
 }

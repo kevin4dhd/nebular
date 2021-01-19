@@ -9,27 +9,21 @@ import {
   NbButtonModule,
   NbCardModule,
   NbCheckboxModule,
+  NbIconModule,
   NbInputModule,
   NbLayoutModule,
 } from '@nebular/theme';
 
-import {
-  NB_AUTH_FALLBACK_TOKEN,
-  NbAuthService,
-  NbAuthSimpleToken,
-  NbAuthTokenClass,
-  NbAuthTokenParceler,
-  NbTokenLocalStorage,
-  NbTokenService,
-  NbTokenStorage,
-} from './services';
-import {
-  NbAuthStrategy,
-  NbAuthStrategyOptions,
-  NbDummyAuthStrategy,
-  NbOAuth2AuthStrategy,
-  NbPasswordAuthStrategy,
-} from './strategies';
+import { NbAuthService } from './services/auth.service';
+import { NbAuthSimpleToken, NbAuthTokenClass } from './services/token/token';
+import { NbTokenLocalStorage, NbTokenStorage } from './services/token/token-storage';
+import { NbTokenService } from './services/token/token.service';
+import { NbAuthTokenParceler, NB_AUTH_FALLBACK_TOKEN } from './services/token/token-parceler';
+import { NbAuthStrategy } from './strategies/auth-strategy';
+import { NbAuthStrategyOptions } from './strategies/auth-strategy-options';
+import { NbDummyAuthStrategy } from './strategies/dummy/dummy-strategy';
+import { NbOAuth2AuthStrategy } from './strategies/oauth2/oauth2-strategy';
+import { NbPasswordAuthStrategy } from './strategies/password/password-strategy';
 
 import {
   defaultAuthOptions,
@@ -52,7 +46,6 @@ import { NbLogoutComponent } from './components/logout/logout.component';
 import { NbRequestPasswordComponent } from './components/request-password/request-password.component';
 import { NbResetPasswordComponent } from './components/reset-password/reset-password.component';
 
-import { routes } from './auth.routes';
 import { deepExtend } from './helpers';
 
 export function nbStrategiesFactory(options: NbAuthOptions, injector: Injector): NbAuthStrategy[] {
@@ -93,8 +86,9 @@ export function nbNoOpInterceptorFilter(req: HttpRequest<any>): boolean {
     NbAlertModule,
     NbInputModule,
     NbButtonModule,
-    RouterModule.forChild(routes),
+    RouterModule,
     FormsModule,
+    NbIconModule,
   ],
   declarations: [
     NbAuthComponent,
@@ -116,8 +110,8 @@ export function nbNoOpInterceptorFilter(req: HttpRequest<any>): boolean {
   ],
 })
 export class NbAuthModule {
-  static forRoot(nbAuthOptions?: NbAuthOptions): ModuleWithProviders {
-    return <ModuleWithProviders> {
+  static forRoot(nbAuthOptions?: NbAuthOptions): ModuleWithProviders<NbAuthModule> {
+    return {
       ngModule: NbAuthModule,
       providers: [
         { provide: NB_AUTH_USER_OPTIONS, useValue: nbAuthOptions },

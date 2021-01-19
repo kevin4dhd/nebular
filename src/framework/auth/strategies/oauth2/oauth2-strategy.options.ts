@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import { NbAuthOAuth2Token, NbAuthTokenClass } from '../../services';
+import { NbAuthOAuth2Token, NbAuthTokenClass } from '../../services/token/token';
 import { NbAuthStrategyOptions } from '../auth-strategy-options';
 
 export enum NbOAuth2ResponseType {
@@ -47,6 +47,7 @@ export class NbOAuth2AuthStrategyOptions extends NbAuthStrategyOptions {
   } = {
     endpoint: 'authorize',
     responseType: NbOAuth2ResponseType.CODE,
+    requireValidToken: true,
   };
   token?: {
     endpoint?: string;
@@ -58,7 +59,7 @@ export class NbOAuth2AuthStrategyOptions extends NbAuthStrategyOptions {
   } = {
     endpoint: 'token',
     grantType: NbOAuth2GrantType.AUTHORIZATION_CODE,
-    requireValidToken: false,
+    requireValidToken: true,
     class: NbAuthOAuth2Token,
   };
   refresh?: {
@@ -69,6 +70,7 @@ export class NbOAuth2AuthStrategyOptions extends NbAuthStrategyOptions {
   } = {
     endpoint: 'token',
     grantType: NbOAuth2GrantType.REFRESH_TOKEN,
+    requireValidToken: true,
   };
 }
 

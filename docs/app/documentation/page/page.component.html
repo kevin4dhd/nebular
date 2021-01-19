@@ -1,8 +1,11 @@
-<div class="middle-column">
+<div class="middle-column docSearch-content">
 
   <nb-card *ngIf="currentItem?.tabs" class="horizontal-nav">
     <nb-card-header>
-      {{ currentItem?.name }}
+      <h1 class="page-header h4">
+        {{ currentItem?.name }}
+        <span class="visually-hidden">{{ currentTabName }}</span>
+      </h1>
     </nb-card-header>
     <nb-card-body>
       <ngd-page-tabs [tabs]="currentItem?.tabs" horizontal></ngd-page-tabs>
@@ -28,5 +31,7 @@
   <div class="fixed-panel">
     <ngd-page-tabs [tabs]="currentItem?.tabs"></ngd-page-tabs>
     <ngd-page-toc [toc]="currentItem?.toc"></ngd-page-toc>
+
+    <ngd-akveo-services-banner height=230 width=256 ctaId="14700578-ded0-4f32-b0bf-01b732af7855"></ngd-akveo-services-banner>
   </div>
 </div>

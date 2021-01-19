@@ -11,7 +11,7 @@ import { of as observableOf } from 'rxjs';
 import { delay, first } from 'rxjs/operators';
 import { NB_AUTH_OPTIONS, NB_AUTH_USER_OPTIONS, NB_AUTH_STRATEGIES, NB_AUTH_TOKENS } from '../auth.options';
 import { NbAuthService } from './auth.service';
-import { NbDummyAuthStrategy } from '../strategies';
+import { NbDummyAuthStrategy } from '../strategies/dummy/dummy-strategy';
 import { nbStrategiesFactory, nbOptionsFactory } from '../auth.module';
 import { NbAuthResult } from './auth-result';
 import { NbTokenService } from './token/token.service';
@@ -103,9 +103,9 @@ describe('auth-service', () => {
         NbDummyAuthStrategy,
       ],
     });
-    authService = TestBed.get(NbAuthService);
-    tokenService = TestBed.get(NbTokenService);
-    dummyAuthStrategy = TestBed.get(NbDummyAuthStrategy);
+    authService = TestBed.inject(NbAuthService);
+    tokenService = TestBed.inject(NbTokenService);
+    dummyAuthStrategy = TestBed.inject(NbDummyAuthStrategy);
   });
 
   it('get test token before set', () => {

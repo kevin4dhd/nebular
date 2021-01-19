@@ -6,32 +6,26 @@
 
 import {
   AfterViewInit,
-  ComponentFactoryResolver,
-  ComponentRef,
   Directive,
   ElementRef,
-  Inject,
   Input,
+  OnChanges,
   OnDestroy,
+  OnInit,
+  Output,
+  EventEmitter,
+  SimpleChanges,
 } from '@angular/core';
-import { takeWhile } from 'rxjs/operators';
 
-import {
-  NbAdjustableConnectedPositionStrategy,
-  NbAdjustment,
-  NbOverlayContent,
-  NbOverlayRef,
-  NbOverlayService,
-  NbPosition,
-  NbPositionBuilderService,
-  NbTrigger,
-  NbTriggerStrategy,
-  NbTriggerStrategyBuilder,
-  patch,
-  createContainer,
-} from '../cdk';
-import { NB_DOCUMENT } from '../../theme.options';
+import { NbDynamicOverlay, NbDynamicOverlayController } from '../cdk/overlay/dynamic/dynamic-overlay';
+import { NbDynamicOverlayHandler } from '../cdk/overlay/dynamic/dynamic-overlay-handler';
+import { NbAdjustment, NbPosition, NbPositionValues, NbAdjustmentValues } from '../cdk/overlay/overlay-position';
+import { NbOverlayContent } from '../cdk/overlay/overlay-service';
+import { NbTrigger, NbTriggerValues } from '../cdk/overlay/overlay-trigger';
+import { NbOverlayConfig } from '../cdk/overlay/mapping';
 import { NbPopoverComponent } from './popover.component';
+import { takeUntil, skip } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 
 
 /**
@@ -54,7 +48,7 @@ import { NbPopoverComponent } from './popover.component';
  * ```ts
  * @NgModule({
  *   imports: [
- *   	// ...
+ *     // ...
  *     NbPopoverModule,
  *   ],
  * })
@@ -84,28 +78,50 @@ import { NbPopoverComponent } from './popover.component';
  *
  * By default popover will try to adjust itself to maximally fit viewport
  * and provide the best user experience. It will try to change position of the popover container.
- * If you wanna disable this behaviour just set it falsy value.
+ * If you want to disable this behaviour set it `noop`.
  *
  * ```html
- * <button nbPopover="Hello, Popover!" [nbPopoverAdjust]="false"></button>
+ * <button nbPopover="Hello, Popover!" nbPopoverAdjustment="noop"></button>
  * ```
  *
- * Also popover has some different modes which provides capability show$ and hide$ popover in different ways:
+ * Popover has a number of triggers which provides an ability to show and hide the component in different ways:
  *
- * - Click mode popover shows when a user clicking on the host element and hides when the user clicks
- * somewhere on the document except popover.
- * - Hint mode provides capability show$ popover when the user hovers on the host element
- * and hide$ popover when user hovers out of the host.
- * - Hover mode works like hint mode with one exception - when the user moves mouse from host element to
- * the container element popover will not be hidden.
+ * - Click mode shows the component when a user clicks on the host element and hides when the user clicks
+ * somewhere on the document outside the component.
+ * - Hint provides capability to show the component when the user hovers over the host element
+ * and hide when the user hovers out of the host.
+ * - Hover works like hint mode with one exception - when the user moves mouse from host element to
+ * the container element the component remains open, so that it is possible to interact with it content.
+ * - Focus mode is applied when user focuses the element.
+ * - Noop mode - the component won't react to the user interaction.
  *
- * @stacked-example(Available Modes, popover/popover-modes.component.html)
+ * @stacked-example(Available Triggers, popover/popover-modes.component.html)
+ *
+ * Noop mode is especially useful when you need to control Popover programmatically, for example show/hide
+ * as a result of some third-party action, like HTTP request or validation check:
+ *
+ * @stacked-example(Manual Control, popover/popover-noop.component)
+ *
+ * Below are examples for manual popover settings control, both via template binding and code.
+ * @stacked-example(Popover Settings, popover/popover-dynamic.component)
+ *
+ * Please note, while manipulating Popover setting via code, you need to call `rebuild()` method to apply the settings
+ * changed.
+ * @stacked-example(Popover Settings Code, popover/popover-dynamic-code.component)
  *
  * @additional-example(Template Ref, popover/popover-template-ref.component)
  * @additional-example(Custom Component, popover/popover-custom-component.component)
  * */
-@Directive({ selector: '[nbPopover]' })
-export class NbPopoverDirective implements AfterViewInit, OnDestroy {
+@Directive({
+  selector: '[nbPopover]',
+  exportAs: 'nbPopover',
+  providers: [NbDynamicOverlayHandler, NbDynamicOverlay],
+})
+export class NbPopoverDirective implements NbDynamicOverlayController, OnChanges, AfterViewInit, OnDestroy, OnInit {
+
+  protected popoverComponent = NbPopoverComponent;
+  protected dynamicOverlay: NbDynamicOverlay;
+  protected destroy$ = new Subject<void>();
 
   /**
    * Popover content which will be rendered in NbArrowedOverlayContainerComponent.
@@ -126,98 +142,115 @@ export class NbPopoverDirective implements AfterViewInit, OnDestroy {
    * */
   @Input('nbPopoverPlacement')
   position: NbPosition = NbPosition.TOP;
+  static ngAcceptInputType_position: NbPositionValues;
 
   /**
    * Container position will be changes automatically based on this strategy if container can't fit view port.
-   * Set this property to any falsy value if you want to disable automatically adjustment.
-   * Available values: clockwise, counterclockwise.
+   * Set this property to `noop` value if you want to disable automatically adjustment.
+   * Available values: `clockwise` (default), `counterclockwise`, `vertical`, `horizontal`, `noop`.
    * */
   @Input('nbPopoverAdjustment')
-  adjustment: NbAdjustment = NbAdjustment.CLOCKWISE;
+  get adjustment(): NbAdjustment {
+    return this._adjustment;
+  }
+  set adjustment(value: NbAdjustment) {
+    this._adjustment = value;
+  }
+  protected _adjustment: NbAdjustment = NbAdjustment.CLOCKWISE;
+  static ngAcceptInputType_adjustment: NbAdjustmentValues;
 
   /**
    * Describes when the container will be shown.
-   * Available options: click, hover and hint
+   * Available options: `click`, `hover`, `hint`, `focus` and `noop`
    * */
-  @Input('nbPopoverMode')
-  mode: NbTrigger = NbTrigger.CLICK;
+  @Input('nbPopoverTrigger')
+  trigger: NbTrigger = NbTrigger.CLICK;
+  static ngAcceptInputType_trigger: NbTriggerValues;
 
-  protected ref: NbOverlayRef;
-  protected container: ComponentRef<any>;
-  protected positionStrategy: NbAdjustableConnectedPositionStrategy;
-  protected triggerStrategy: NbTriggerStrategy;
-  protected alive: boolean = true;
+  /**
+   * Sets popover offset
+   * */
+  @Input('nbPopoverOffset')
+  offset = 15;
 
-  constructor(@Inject(NB_DOCUMENT) protected document,
-              private hostRef: ElementRef,
-              private positionBuilder: NbPositionBuilderService,
-              private overlay: NbOverlayService,
-              private componentFactoryResolver: ComponentFactoryResolver) {
+  @Input('nbPopoverClass')
+  get popoverClass(): string {
+    return this._popoverClass;
+  }
+  set popoverClass(value: string) {
+    if (value !== this.popoverClass) {
+      this._popoverClass = value;
+      this.overlayConfig = { panelClass: this.popoverClass };
+    }
+  }
+  _popoverClass: string = '';
+
+  @Output()
+  nbPopoverShowStateChange = new EventEmitter<{ isShown: boolean }>();
+
+  protected overlayConfig: NbOverlayConfig = { panelClass: this.popoverClass }
+
+  get isShown(): boolean {
+    return !!(this.dynamicOverlay && this.dynamicOverlay.isAttached);
+  }
+
+  constructor(protected hostRef: ElementRef,
+              protected dynamicOverlayHandler: NbDynamicOverlayHandler) {
+  }
+
+  ngOnInit() {
+    this.dynamicOverlayHandler
+      .host(this.hostRef)
+      .componentType(this.popoverComponent);
+  }
+
+  ngOnChanges() {
+    this.rebuild();
   }
 
   ngAfterViewInit() {
-    this.positionStrategy = this.createPositionStrategy();
-    this.ref = this.overlay.create({
-      positionStrategy: this.positionStrategy,
-      scrollStrategy: this.overlay.scrollStrategies.reposition(),
-    });
-    this.triggerStrategy = this.createTriggerStrategy();
+    this.dynamicOverlay = this.configureDynamicOverlay()
+      .build();
 
-    this.subscribeOnTriggers();
-    this.subscribeOnPositionChange();
+    this.dynamicOverlay.isShown
+      .pipe(
+        skip(1),
+        takeUntil(this.destroy$),
+      )
+      .subscribe((isShown: boolean) => this.nbPopoverShowStateChange.emit({ isShown }));
   }
 
-  ngOnDestroy() {
-    this.alive = false;
-    this.hide();
+  rebuild() {
+    this.dynamicOverlay = this.configureDynamicOverlay()
+      .rebuild();
   }
 
   show() {
-    this.container = createContainer(this.ref, NbPopoverComponent, {
-      position: this.position,
-      content: this.content,
-      context: this.context,
-      cfr: this.componentFactoryResolver,
-    }, this.componentFactoryResolver);
+    this.dynamicOverlay.show();
   }
 
   hide() {
-    this.ref.detach();
-    this.container = null;
+    this.dynamicOverlay.hide();
   }
 
   toggle() {
-    if (this.ref && this.ref.hasAttached()) {
-      this.hide();
-    } else {
-      this.show();
-    }
+    this.dynamicOverlay.toggle();
   }
 
-  protected createPositionStrategy(): NbAdjustableConnectedPositionStrategy {
-    return this.positionBuilder
-      .connectedTo(this.hostRef)
+  ngOnDestroy() {
+    this.dynamicOverlayHandler.destroy();
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  protected configureDynamicOverlay() {
+    return this.dynamicOverlayHandler
       .position(this.position)
-      .adjustment(this.adjustment);
-  }
-
-  protected createTriggerStrategy(): NbTriggerStrategy {
-    return new NbTriggerStrategyBuilder()
-      .document(this.document)
-      .trigger(this.mode)
-      .host(this.hostRef.nativeElement)
-      .container(() => this.container)
-      .build();
-  }
-
-  protected subscribeOnPositionChange() {
-    this.positionStrategy.positionChange
-      .pipe(takeWhile(() => this.alive))
-      .subscribe((position: NbPosition) => patch(this.container, { position }));
-  }
-
-  protected subscribeOnTriggers() {
-    this.triggerStrategy.show$.pipe(takeWhile(() => this.alive)).subscribe(() => this.show());
-    this.triggerStrategy.hide$.pipe(takeWhile(() => this.alive)).subscribe(() => this.hide());
+      .trigger(this.trigger)
+      .offset(this.offset)
+      .adjustment(this.adjustment)
+      .content(this.content)
+      .context(this.context)
+      .overlayConfig(this.overlayConfig);
   }
 }

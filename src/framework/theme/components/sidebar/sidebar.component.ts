@@ -4,15 +4,28 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import { Component, HostBinding, Input, OnInit, OnDestroy, ElementRef, OnChanges } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { takeWhile } from 'rxjs/operators';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  EventEmitter,
+  HostBinding,
+  Input,
+  OnDestroy,
+  OnInit,
+  Output,
+} from '@angular/core';
+import { Subject } from 'rxjs';
+import { takeUntil, filter } from 'rxjs/operators';
 
-import { convertToBoolProperty } from '../helpers';
+import { convertToBoolProperty, NbBooleanInput } from '../helpers';
 import { NbThemeService } from '../../services/theme.service';
 import { NbMediaBreakpoint } from '../../services/breakpoints.service';
-import { NbSidebarService } from './sidebar.service';
+import { NbSidebarService, getSidebarState$, getSidebarResponsiveState$ } from './sidebar.service';
 
+export type NbSidebarState = 'expanded' | 'collapsed' | 'compacted';
+export type NbSidebarResponsiveState = 'mobile' | 'tablet' | 'pc';
 
 /**
  * Sidebar header container.
@@ -55,7 +68,7 @@ export class NbSidebarFooterComponent {
  * ```ts
  * @NgModule({
  *   imports: [
- *   	// ...
+ *     // ...
  *     NbSidebarModule.forRoot(),
  *   ],
  * })
@@ -65,7 +78,7 @@ export class NbSidebarFooterComponent {
  * ```ts
  * @NgModule({
  *   imports: [
- *   	// ...
+ *     // ...
  *     NbSidebarModule,
  *   ],
  * })
@@ -98,18 +111,23 @@ export class NbSidebarFooterComponent {
  *
  * @styles
  *
- * sidebar-font-size: Sidebar content font size
- * sidebar-line-height: Sidebar content line height
- * sidebar-fg: Foreground color
- * sidebar-bg: Background color
- * sidebar-height: Content height
- * sidebar-width: Expanded width
- * sidebar-width-compact: Compacted width
- * sidebar-padding: Sidebar content padding
- * sidebar-header-height: Sidebar header height
- * sidebar-footer-height: Sidebar footer height
- * sidebar-shadow: Sidebar container shadow
- *
+ * sidebar-background-color:
+ * sidebar-text-color:
+ * sidebar-text-font-family:
+ * sidebar-text-font-size:
+ * sidebar-text-font-weight:
+ * sidebar-text-line-height:
+ * sidebar-height:
+ * sidebar-width:
+ * sidebar-width-compact:
+ * sidebar-padding:
+ * sidebar-header-height:
+ * sidebar-footer-height:
+ * sidebar-shadow:
+ * sidebar-menu-item-highlight-color:
+ * sidebar-scrollbar-background-color:
+ * sidebar-scrollbar-color:
+ * sidebar-scrollbar-width:
  */
 @Component({
   selector: 'nb-sidebar',
@@ -124,21 +142,13 @@ export class NbSidebarFooterComponent {
       <ng-content select="nb-sidebar-footer"></ng-content>
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
+export class NbSidebarComponent implements OnInit, OnDestroy {
 
-  static readonly STATE_EXPANDED: string = 'expanded';
-  static readonly STATE_COLLAPSED: string = 'collapsed';
-  static readonly STATE_COMPACTED: string = 'compacted';
+  protected responsiveState: NbSidebarResponsiveState = 'pc';
 
-  static readonly RESPONSIVE_STATE_MOBILE: string = 'mobile';
-  static readonly RESPONSIVE_STATE_TABLET: string = 'tablet';
-  static readonly RESPONSIVE_STATE_PC: string = 'pc';
-
-  protected stateValue: string;
-  protected responsiveValue: boolean = false;
-
-  private alive = true;
+  protected destroy$ = new Subject<void>();
 
   containerFixedValue: boolean = true;
 
@@ -148,18 +158,17 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
   @HostBinding('class.start') startValue: boolean = false;
   @HostBinding('class.end') endValue: boolean = false;
 
-  // TODO: rename stateValue to state (take a look to the card component)
   @HostBinding('class.expanded')
   get expanded() {
-    return this.stateValue === NbSidebarComponent.STATE_EXPANDED;
+    return this.state === 'expanded';
   }
   @HostBinding('class.collapsed')
   get collapsed() {
-    return this.stateValue === NbSidebarComponent.STATE_COLLAPSED;
+    return this.state === 'collapsed';
   }
   @HostBinding('class.compacted')
   get compacted() {
-    return this.stateValue === NbSidebarComponent.STATE_COMPACTED;
+    return this.state === 'compacted';
   }
 
   /**
@@ -173,6 +182,7 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
     this.startValue = false;
     this.endValue = false;
   }
+  static ngAcceptInputType_right: NbBooleanInput;
 
   /**
    * Places sidebar on the left side
@@ -185,6 +195,7 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
     this.startValue = false;
     this.endValue = false;
   }
+  static ngAcceptInputType_left: NbBooleanInput;
 
   /**
    * Places sidebar on the start edge of layout
@@ -197,6 +208,7 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
     this.leftValue = false;
     this.rightValue = false;
   }
+  static ngAcceptInputType_start: NbBooleanInput;
 
   /**
    * Places sidebar on the end edge of layout
@@ -209,6 +221,7 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
     this.leftValue = false;
     this.rightValue = false;
   }
+  static ngAcceptInputType_end: NbBooleanInput;
 
   /**
    * Makes sidebar fixed (shown above the layout content)
@@ -218,6 +231,7 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
   set fixed(val: boolean) {
     this.fixedValue = convertToBoolProperty(val);
   }
+  static ngAcceptInputType_fixed: NbBooleanInput;
 
   /**
    * Makes sidebar container fixed
@@ -227,24 +241,34 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
   set containerFixed(val: boolean) {
     this.containerFixedValue = convertToBoolProperty(val);
   }
+  static ngAcceptInputType_containerFixed: NbBooleanInput;
 
   /**
    * Initial sidebar state, `expanded`|`collapsed`|`compacted`
    * @type {string}
    */
   @Input()
-  set state(val: string) {
-    this.stateValue = val;
+  get state(): NbSidebarState {
+    return this._state;
   }
+  set state(value: NbSidebarState) {
+    this._state = value;
+  }
+  protected _state: NbSidebarState;
 
   /**
    * Makes sidebar listen to media query events and change its behaviour
    * @type {boolean}
    */
   @Input()
-  set responsive(val: boolean) {
-    this.responsiveValue = convertToBoolProperty(val);
+  get responsive(): boolean {
+    return this._responsive;
   }
+  set responsive(value: boolean) {
+    this._responsive = convertToBoolProperty(value);
+  }
+  protected _responsive: boolean = false;
+  static ngAcceptInputType_responsive: NbBooleanInput;
 
   /**
    * Tags a sidebar with some ID, can be later used in the sidebar service
@@ -273,59 +297,66 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
    */
   @Input() collapsedBreakpoints: string[] = ['xs', 'is'];
 
-  private mediaQuerySubscription: Subscription;
-  private responsiveState = NbSidebarComponent.RESPONSIVE_STATE_PC;
+  /**
+   * Emits whenever sidebar state change.
+   */
+  @Output() readonly stateChange = new EventEmitter<NbSidebarState>();
 
-  constructor(private sidebarService: NbSidebarService,
+  /**
+   * Emits whenever sidebar responsive state change.
+   */
+  @Output() readonly responsiveStateChange = new EventEmitter<NbSidebarResponsiveState>();
+
+  constructor(
+    private sidebarService: NbSidebarService,
     private themeService: NbThemeService,
-    private element: ElementRef) {
-  }
-
-  toggleResponsive(enabled: boolean) {
-    if (enabled) {
-      this.mediaQuerySubscription = this.onMediaQueryChanges();
-    } else if (this.mediaQuerySubscription) {
-      this.mediaQuerySubscription.unsubscribe();
-    }
-  }
-
-  ngOnChanges(changes) {
-    if (changes.responsive) {
-      this.toggleResponsive(this.responsiveValue);
-    }
-  }
+    private element: ElementRef,
+    private cd: ChangeDetectorRef,
+  ) {}
 
   ngOnInit() {
     this.sidebarService.onToggle()
-      .pipe(takeWhile(() => this.alive))
-      .subscribe((data: { compact: boolean, tag: string }) => {
-        if (!this.tag || this.tag === data.tag) {
-          this.toggle(data.compact);
-        }
-      });
+      .pipe(
+        filter(({ tag }) => !this.tag || this.tag === tag),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(({ compact }) => this.toggle(compact));
 
     this.sidebarService.onExpand()
-      .pipe(takeWhile(() => this.alive))
-      .subscribe((data: { tag: string }) => {
-        if (!this.tag || this.tag === data.tag) {
-          this.expand();
-        }
-      });
+      .pipe(
+        filter(({ tag }) => !this.tag || this.tag === tag),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(() => this.expand());
 
     this.sidebarService.onCollapse()
-      .pipe(takeWhile(() => this.alive))
-      .subscribe((data: { tag: string }) => {
-        if (!this.tag || this.tag === data.tag) {
-          this.collapse();
-        }
-      });
+      .pipe(
+        filter(({ tag }) => !this.tag || this.tag === tag),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(() => this.collapse());
+
+    this.sidebarService.onCompact()
+      .pipe(
+        filter(({ tag }) => !this.tag || this.tag === tag),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(() => this.compact());
+
+    getSidebarState$
+      .pipe(filter(({ tag }) => !this.tag || this.tag === tag))
+      .subscribe(({ observer }) => observer.next(this.state));
+
+    getSidebarResponsiveState$
+      .pipe(filter(({ tag }) => !this.tag || this.tag === tag))
+      .subscribe(({ observer }) => observer.next(this.responsiveState));
+
+    this.subscribeToMediaQueryChange();
   }
 
   ngOnDestroy() {
-    this.alive = false;
-    if (this.mediaQuerySubscription) {
-      this.mediaQuerySubscription.unsubscribe();
-    }
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   // TODO: this is more of a workaround, should be a better way to make components communicate to each other
@@ -333,17 +364,10 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
     const menu = this.element.nativeElement.querySelector('nb-menu');
 
     if (menu && menu.contains(event.target)) {
-      let link = event.target;
-      const linkChildren = ['span', 'i'];
+      const link = this.getMenuLink(event.target);
 
-      // if we clicked on span - get the link
-      if (linkChildren.includes(link.tagName.toLowerCase()) && link.parentNode) {
-        link = event.target.parentNode;
-      }
-
-      // we only expand if an item has children
       if (link && link.nextElementSibling && link.nextElementSibling.classList.contains('menu-items')) {
-        this.expand();
+        this.sidebarService.expand(this.tag);
       }
     }
   }
@@ -352,21 +376,27 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
    * Collapses the sidebar
    */
   collapse() {
-    this.state = NbSidebarComponent.STATE_COLLAPSED;
+    this.state = 'collapsed';
+    this.stateChange.emit(this.state);
+    this.cd.markForCheck();
   }
 
   /**
    * Expands the sidebar
    */
   expand() {
-    this.state = NbSidebarComponent.STATE_EXPANDED;
+    this.state = 'expanded';
+    this.stateChange.emit(this.state);
+    this.cd.markForCheck();
   }
 
   /**
    * Compacts the sidebar (minimizes)
    */
   compact() {
-    this.state = NbSidebarComponent.STATE_COMPACTED;
+    this.state = 'compacted';
+    this.stateChange.emit(this.state);
+    this.cd.markForCheck();
   }
 
   /**
@@ -381,48 +411,106 @@ export class NbSidebarComponent implements OnChanges, OnInit, OnDestroy {
    * ```
    */
   toggle(compact: boolean = false) {
-    if (this.responsiveEnabled()) {
-      if (this.responsiveState === NbSidebarComponent.RESPONSIVE_STATE_MOBILE) {
+    if (this.responsive) {
+      if (this.responsiveState === 'mobile') {
         compact = false;
       }
     }
 
-    const closedStates = [NbSidebarComponent.STATE_COMPACTED, NbSidebarComponent.STATE_COLLAPSED];
-    if (compact) {
-      this.state = closedStates.includes(this.stateValue) ?
-        NbSidebarComponent.STATE_EXPANDED : NbSidebarComponent.STATE_COMPACTED;
+    if (this.state === 'compacted' || this.state === 'collapsed') {
+      this.state = 'expanded';
     } else {
-      this.state = closedStates.includes(this.stateValue) ?
-        NbSidebarComponent.STATE_EXPANDED : NbSidebarComponent.STATE_COLLAPSED;
+      this.state = compact ? 'compacted' : 'collapsed';
     }
+    this.stateChange.emit(this.state);
+    this.cd.markForCheck();
   }
 
-  protected onMediaQueryChanges(): Subscription {
-    return this.themeService.onMediaQueryChange()
+  protected subscribeToMediaQueryChange() {
+    this.themeService.onMediaQueryChange()
+      .pipe(
+        filter(() => this.responsive),
+        takeUntil(this.destroy$),
+      )
       .subscribe(([prev, current]: [NbMediaBreakpoint, NbMediaBreakpoint]) => {
 
         const isCollapsed = this.collapsedBreakpoints.includes(current.name);
         const isCompacted = this.compactedBreakpoints.includes(current.name);
 
+        let newResponsiveState;
+
         if (isCompacted) {
           this.fixed = this.containerFixedValue;
           this.compact();
-          this.responsiveState = NbSidebarComponent.RESPONSIVE_STATE_TABLET;
+          newResponsiveState = 'tablet';
         }
         if (isCollapsed) {
           this.fixed = true;
           this.collapse();
-          this.responsiveState = NbSidebarComponent.RESPONSIVE_STATE_MOBILE;
+          newResponsiveState = 'mobile';
         }
-        if (!isCollapsed && !isCollapsed && prev.width < current.width) {
+        if (!isCollapsed && !isCompacted && prev.width < current.width) {
           this.expand();
           this.fixed = false;
-          this.responsiveState = NbSidebarComponent.RESPONSIVE_STATE_PC;
+          newResponsiveState = 'pc';
+        }
+
+        if (newResponsiveState && newResponsiveState !== this.responsiveState) {
+          this.responsiveState = newResponsiveState;
+          this.responsiveStateChange.emit(this.responsiveState);
+          this.cd.markForCheck();
         }
       });
   }
 
-  protected responsiveEnabled(): boolean {
-    return this.responsiveValue;
+  protected getMenuLink(element: HTMLElement): HTMLElement | undefined {
+    if (!element || element.tagName.toLowerCase() === 'nb-menu') {
+      return;
+    }
+
+    if (element.tagName.toLowerCase() === 'a') {
+      return element;
+    }
+
+    return this.getMenuLink(element.parentElement);
   }
+
+  /**
+   * @deprecated Use `responsive` property instead
+   * @breaking-change Remove @8.0.0
+   */
+  toggleResponsive(enabled: boolean) {
+    this.responsive = enabled;
+  }
+  /**
+   * @deprecated Use NbSidebarState type instead
+   * @breaking-change Remove @8.0.0
+   */
+  static readonly STATE_EXPANDED: string = 'expanded';
+  /**
+   * @deprecated Use NbSidebarState type instead
+   * @breaking-change Remove @8.0.0
+   */
+  static readonly STATE_COLLAPSED: string = 'collapsed';
+  /**
+   * @deprecated Use NbSidebarState type instead
+   * @breaking-change Remove @8.0.0
+   */
+  static readonly STATE_COMPACTED: string = 'compacted';
+
+  /**
+   * @deprecated Use NbSidebarResponsiveState type instead
+   * @breaking-change Remove @8.0.0
+   */
+  static readonly RESPONSIVE_STATE_MOBILE: string = 'mobile';
+  /**
+   * @deprecated Use NbSidebarResponsiveState type instead
+   * @breaking-change Remove @8.0.0
+   */
+  static readonly RESPONSIVE_STATE_TABLET: string = 'tablet';
+  /**
+   * @deprecated Use NbSidebarResponsiveState type instead
+   * @breaking-change Remove @8.0.0
+   */
+  static readonly RESPONSIVE_STATE_PC: string = 'pc';
 }

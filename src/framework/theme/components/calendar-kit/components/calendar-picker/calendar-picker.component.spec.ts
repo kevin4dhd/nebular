@@ -6,21 +6,15 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { NgModule, NO_ERRORS_SCHEMA } from '@angular/core';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 
 import { NbCalendarPickerComponent } from './calendar-picker.component';
 import { NbCalendarPickerRowComponent } from './calendar-picker-row.component';
 import { NbCalendarDayCellComponent } from '../calendar-day-picker/calendar-day-cell.component';
 import { DatePipe } from '@angular/common';
-import { NbDateService, NbNativeDateService } from '../../services';
-
-
-@NgModule({
-  declarations: [NbCalendarDayCellComponent],
-  entryComponents: [NbCalendarDayCellComponent],
-})
-export class NbCalendarPickerTestModule {
-}
+import { NbDateService } from '../../services/date.service';
+import { NbNativeDateService } from '../../services/native-date.service';
+import { NbCalendarKitModule } from '../../calendar-kit.module';
 
 describe('Component: NbCalendarPicker', () => {
   let fixture: ComponentFixture<NbCalendarPickerComponent<Date, Date>>;
@@ -38,7 +32,7 @@ describe('Component: NbCalendarPicker', () => {
     TestBed.configureTestingModule({
       declarations: [NbCalendarPickerRowComponent, NbCalendarPickerComponent],
       providers: [DatePipe, { provide: NbDateService, useClass: NbNativeDateService }],
-      imports: [NbCalendarPickerTestModule],
+      imports: [NbCalendarKitModule],
       schemas: [NO_ERRORS_SCHEMA],
     });
     fixture = TestBed.createComponent<NbCalendarPickerComponent<Date, Date>>(NbCalendarPickerComponent);

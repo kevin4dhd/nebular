@@ -6,11 +6,17 @@
 
 import { InjectionToken } from '@angular/core';
 
-import { NbToastStatus } from './model';
-import { NbGlobalLogicalPosition, NbGlobalPosition } from '../cdk';
+import { NbGlobalLogicalPosition, NbGlobalPosition } from '../cdk/overlay/position-helper';
+import { NbComponentOrCustomStatus, NbComponentStatus } from '../component-status';
+import { NbIconConfig } from '../icon/icon.component';
 
+type IconToClassMap = {
+  [status in NbComponentStatus]: string;
+}
 
 export const NB_TOASTR_CONFIG = new InjectionToken<NbToastrConfig>('Default toastr options');
+
+export type NbDuplicateToastBehaviour = 'previous' | 'all';
 
 /**
  * The `NbToastrConfig` class describes configuration of the `NbToastrService.show` and global toastr configuration.
@@ -23,7 +29,7 @@ export class NbToastrConfig {
   /**
    * Status chooses color scheme for the toast.
    * */
-  status: NbToastStatus = NbToastStatus.PRIMARY;
+  status: NbComponentOrCustomStatus = 'basic';
   /**
    * Duration is timeout between toast appears and disappears.
    * */
@@ -33,26 +39,42 @@ export class NbToastrConfig {
    * */
   destroyByClick: boolean = true;
   /**
-   * If preventDuplicates is true then the next toast with the same title and message will not be rendered.
+   * If preventDuplicates is true then the toast with the same title, message and status will not be rendered.
+   * Find duplicates behaviour determined by `preventDuplicates`.
+   * The default `previous` duplicate behaviour is used.
    * */
   preventDuplicates: boolean = false;
+  /**
+   * Determines the how to treat duplicates.
+   * */
+  duplicatesBehaviour: NbDuplicateToastBehaviour = 'previous';
+  /*
+  * The number of visible toasts. If the limit exceeded the oldest toast will be removed.
+  * */
+  limit?: number = null;
+  /**
+   * Class to be applied to the toast.
+   */
+  toastClass: string = '';
   /**
    * Determines render icon or not.
    * */
   hasIcon: boolean = true;
   /**
-   * Icon class that can be provided to render custom icon.
+   * Icon name or icon config object that can be provided to render custom icon.
    * */
-  icon: string = 'nb-email';
+  icon: string | NbIconConfig = 'email';
   /**
    * Toast status icon-class mapping.
    * */
-  protected icons = {
-    [NbToastStatus.DANGER]: 'nb-danger',
-    [NbToastStatus.SUCCESS]: 'nb-checkmark-circle',
-    [NbToastStatus.INFO]: 'nb-help',
-    [NbToastStatus.WARNING]: 'nb-alert',
-    [NbToastStatus.PRIMARY]: 'nb-email',
+  protected icons: IconToClassMap = {
+    danger: 'flash-outline',
+    success: 'checkmark-outline',
+    info: 'question-mark-outline',
+    warning: 'alert-triangle-outline',
+    primary: 'email-outline',
+    control: 'email-outline',
+    basic: 'email-outline',
   };
 
   constructor(config: Partial<NbToastrConfig>) {
@@ -62,7 +84,10 @@ export class NbToastrConfig {
 
   protected patchIcon(config: Partial<NbToastrConfig>) {
     if (!('icon' in config)) {
-      config.icon = this.icons[config.status || NbToastStatus.PRIMARY];
+      config.icon = {
+        icon: this.icons[config.status] || this.icons.basic,
+        pack: 'nebular-essentials',
+      };
     }
   }
 }

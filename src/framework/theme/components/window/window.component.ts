@@ -7,16 +7,15 @@ import {
   OnInit,
   TemplateRef,
   Renderer2,
-  ViewChild, AfterViewInit, Type, ComponentFactoryResolver, Input,
+  ViewChild,
+  Type,
+  ComponentFactoryResolver,
+  Input,
+  AfterViewChecked,
 } from '@angular/core';
-import {
-  NbComponentPortal,
-  NbFocusTrap,
-  NbFocusTrapFactoryService,
-  NbOverlayContainerComponent,
-  NbTemplatePortal,
-} from '../cdk';
-import { NbComponentType } from '../cdk/overlay';
+import { NbFocusTrap, NbFocusTrapFactoryService } from '../cdk/a11y/focus-trap';
+import { NbComponentPortal, NbComponentType, NbTemplatePortal } from '../cdk/overlay/mapping';
+import { NbOverlayContainerComponent } from '../cdk/overlay/overlay-container';
 import { NB_WINDOW_CONTENT, NbWindowConfig, NbWindowState, NB_WINDOW_CONTEXT } from './window.options';
 import { NbWindowRef } from './window-ref';
 
@@ -28,17 +27,17 @@ import { NbWindowRef } from './window-ref';
         <div cdkFocusInitial class="title" tabindex="-1">{{ config.title }}</div>
 
         <div class="buttons">
-          <button class="button" (click)="minimize()">
-            <i class="nb-fold"></i>
+          <button nbButton ghost (click)="minimize()">
+            <nb-icon icon="minus-outline" pack="nebular-essentials"></nb-icon>
           </button>
-          <button class="button" *ngIf="isFullScreen" (click)="maximize()">
-            <i class="nb-minimize"></i>
+          <button nbButton ghost *ngIf="isFullScreen" (click)="maximize()">
+            <nb-icon icon="collapse-outline" pack="nebular-essentials"></nb-icon>
           </button>
-          <button class="button" *ngIf="minimized || maximized" (click)="maximizeOrFullScreen()">
-            <i class="nb-maximize"></i>
+          <button nbButton ghost *ngIf="minimized || maximized" (click)="maximizeOrFullScreen()">
+            <nb-icon icon="expand-outline" pack="nebular-essentials"></nb-icon>
           </button>
-          <button class="button" (click)="close()">
-            <i class="nb-close"></i>
+          <button nbButton ghost (click)="close()">
+            <nb-icon icon="close-outline" pack="nebular-essentials"></nb-icon>
           </button>
         </div>
       </nb-card-header>
@@ -49,7 +48,7 @@ import { NbWindowRef } from './window-ref';
   `,
   styleUrls: ['./window.component.scss'],
 })
-export class NbWindowComponent implements OnInit, AfterViewInit, OnDestroy {
+export class NbWindowComponent implements OnInit, AfterViewChecked, OnDestroy {
   @Input() cfr: ComponentFactoryResolver;
 
   @HostBinding('class.full-screen')
@@ -91,7 +90,11 @@ export class NbWindowComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  ngAfterViewInit() {
+  ngAfterViewChecked() {
+    if (!this.overlayContainer || this.overlayContainer.isAttached) {
+      return;
+    }
+
     if (this.content instanceof TemplateRef) {
       this.attachTemplate();
     } else {
@@ -136,15 +139,13 @@ export class NbWindowComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected attachTemplate() {
-    this.overlayContainer.attachTemplatePortal(new NbTemplatePortal(this.content as TemplateRef<any>, null, {
-      $implicit: this.context,
-    }));
+    this.overlayContainer
+      .attachTemplatePortal(new NbTemplatePortal(this.content as TemplateRef<any>, null, this.context));
   }
 
   protected attachComponent() {
     const portal = new NbComponentPortal(this.content as Type<any>, null, null, this.cfr);
-    const ref = this.overlayContainer.attachComponentPortal(portal);
-    Object.assign(ref.instance, this.context);
+    const ref = this.overlayContainer.attachComponentPortal(portal, this.context);
     ref.changeDetectorRef.detectChanges();
   }
 }

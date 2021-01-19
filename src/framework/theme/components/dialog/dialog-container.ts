@@ -6,13 +6,8 @@
 
 import { Component, ComponentRef, ElementRef, EmbeddedViewRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 
-import {
-  NbComponentPortal,
-  NbFocusTrap,
-  NbFocusTrapFactoryService,
-  NbPortalOutletDirective,
-  NbTemplatePortal,
-} from '../cdk';
+import { NbComponentPortal, NbPortalOutletDirective, NbTemplatePortal } from '../cdk/overlay/mapping';
+import { NbFocusTrap, NbFocusTrapFactoryService } from '../cdk/a11y/focus-trap';
 import { NbDialogConfig } from './dialog-config';
 
 
@@ -26,7 +21,9 @@ import { NbDialogConfig } from './dialog-config';
   template: '<ng-template nbPortalOutlet></ng-template>',
 })
 export class NbDialogContainerComponent implements OnInit, OnDestroy {
-  @ViewChild(NbPortalOutletDirective) portalOutlet: NbPortalOutletDirective;
+
+  // TODO static must be false as of Angular 9.0.0, issues/1514
+  @ViewChild(NbPortalOutletDirective, { static: true }) portalOutlet: NbPortalOutletDirective;
 
   protected focusTrap: NbFocusTrap;
 

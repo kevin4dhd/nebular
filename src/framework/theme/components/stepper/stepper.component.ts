@@ -6,16 +6,17 @@
 
 import {
   Component,
-  ContentChildren, HostBinding,
+  ContentChildren,
+  HostBinding,
   Input,
   QueryList,
+  TemplateRef,
 } from '@angular/core';
+import { convertToBoolProperty, NbBooleanInput } from '../helpers';
+import { NB_STEPPER } from './stepper-tokens';
 import { NbStepComponent } from './step.component';
 
-export enum NbStepperOrientation {
-  VERTICAL = 'vertical',
-  HORIZONTAL = 'horizontal',
-}
+export type NbStepperOrientation = 'vertical' | 'horizontal';
 
 /**
  * Stepper component
@@ -28,7 +29,7 @@ export enum NbStepperOrientation {
  * ```ts
  * @NgModule({
  *   imports: [
- *   	// ...
+ *     // ...
  *     NbStepperModule,
  *   ],
  * })
@@ -42,7 +43,7 @@ export enum NbStepperOrientation {
  * <nb-stepper orientation="horizontal">
  *   <nb-step label="step number one">
  *       // ... step content here
- *   <nb-step>
+ *   </nb-step>
  *   <nb-step label="stepLabel">
  *       <ng-template #stepLabel>
  *           <div>
@@ -50,10 +51,15 @@ export enum NbStepperOrientation {
  *           </div>
  *       </ng-template>
  *       // ... step content here
- *   <nb-step>
+ *   </nb-step>
  * </nb-stepper>
  * ```
- * Specify `[stepControl]="form"` and user can navigates only if submit previous step's form.
+ *
+ * When linear mode enabled user can't move forward unless current step is complete.
+ * @stacked-example(Linear, stepper/stepper-linear.component)
+ *
+ * Specify `[stepControl]="form"` and stepper allow go to the next step only if form is valid.
+ * You can disable it via `linear` mode setting.
  * ```html
  * // ...
  * <nb-stepper  orientation="horizontal">
@@ -61,7 +67,7 @@ export enum NbStepperOrientation {
  *     <form [formGroup]="form">
  *       // ...
  *     </form>
- *   <nb-step>
+ *   </nb-step>
  *    // ...
  * </nb-stepper>
  * ```
@@ -71,114 +77,183 @@ export enum NbStepperOrientation {
  * Stepper component has two layout options - `vertical` & `horizontal`
  * @stacked-example(Vertical, stepper/stepper-vertical.component)
  *
+ * `disableStepNavigation` disables navigation by clicking on steps, so user can navigate only using
+ * 'nbStepperPrevious' and 'nbStepperNext' buttons.
+ * @stacked-example(Disabled steps navigation, stepper/stepper-disabled-step-nav.component)
+ *
  * @styles
  *
- * stepper-index-size:
- * stepper-label-font-size:
- * stepper-label-font-weight:
- * stepper-accent-color:
- * stepper-completed-fg:
- * stepper-fg:
- * stepper-completed-icon-size:
- * stepper-completed-icon-weight:
+ * stepper-step-text-color:
+ * stepper-step-text-font-family:
+ * stepper-step-text-font-size:
+ * stepper-step-text-font-weight:
+ * stepper-step-text-line-height:
+ * stepper-step-active-text-color:
+ * stepper-step-completed-text-color:
+ * stepper-step-index-border-color:
+ * stepper-step-index-border-style:
+ * stepper-step-index-border-width:
+ * stepper-step-index-border-radius:
+ * stepper-step-index-width:
+ * stepper-step-index-active-border-color:
+ * stepper-step-index-completed-background-color:
+ * stepper-step-index-completed-border-color:
+ * stepper-step-index-completed-text-color:
+ * stepper-connector-background-color:
+ * stepper-connector-completed-background-color:
+ * stepper-horizontal-connector-margin:
+ * stepper-vertical-connector-margin:
+ * stepper-step-content-padding:
  */
 @Component({
   selector: 'nb-stepper',
   styleUrls: ['./stepper.component.scss'],
   templateUrl: './stepper.component.html',
+  providers: [{ provide: NB_STEPPER, useExisting: NbStepperComponent }],
 })
 export class NbStepperComponent {
 
-  @ContentChildren(NbStepComponent) steps: QueryList<NbStepComponent>;
-
-  @HostBinding('class.vertical')
-  get vertical() {
-    return this.orientation === NbStepperOrientation.VERTICAL;
-  }
-
-  @HostBinding('class.horizontal')
-  get horizontal() {
-    return this.orientation === NbStepperOrientation.HORIZONTAL;
-  }
-
   /**
    * Selected step index
-   *
-   * @type {boolean}
    */
   @Input()
   get selectedIndex() {
-    return this.index;
+    return this._selectedIndex;
   }
-
   set selectedIndex(index: number) {
-    if (this.steps) {
-      if (this.index !== index && this.isStepValid(index)) {
-        this.index = index;
-      }
-    } else {
-      this.index = index;
+    if (!this.steps) {
+      this._selectedIndex = index;
+      return;
+    }
+
+    this.markCurrentStepInteracted();
+    if (this.canBeSelected(index)) {
+      this._selectedIndex = index;
     }
   }
+  protected _selectedIndex: number = 0;
+
+  /**
+   * Disables navigation by clicking on steps. False by default
+   * @param {boolean} value
+   */
+  @Input()
+  set disableStepNavigation(value: boolean) {
+    this._disableStepNavigation = convertToBoolProperty(value);
+  }
+  get disableStepNavigation(): boolean {
+    return this._disableStepNavigation;
+  }
+  protected _disableStepNavigation: boolean = false;
+  static ngAcceptInputType_disableStepNavigation: NbBooleanInput;
 
   /**
    * Selected step component
-   *
-   * @type {boolean}
    */
   @Input()
-  get selected(): NbStepComponent | undefined {
+  get selected(): NbStepComponent {
     return this.steps ? this.steps.toArray()[this.selectedIndex] : undefined;
   }
-
   set selected(step: NbStepComponent) {
-    this.selectedIndex = this.steps ? this.steps.toArray().indexOf(step) : -1;
+    if (!this.steps) {
+      return;
+    }
+    this.selectedIndex = this.steps.toArray().indexOf(step);
   }
 
   /**
    * Stepper orientation - `horizontal`|`vertical`
-   * @type {string}
    */
-  @Input() orientation: string = NbStepperOrientation.HORIZONTAL;
+  @Input() orientation: NbStepperOrientation = 'horizontal';
 
-  private index = 0;
+  /**
+   * Allow moving forward only if the current step is complete
+   * @default true
+   */
+  @Input()
+  set linear(value: boolean) {
+    this._linear = convertToBoolProperty(value);
+  }
+  get linear(): boolean {
+    return this._linear;
+  }
+  protected _linear = true;
+  static ngAcceptInputType_linear: NbBooleanInput;
+
+  @HostBinding('class.vertical')
+  get vertical() {
+    return this.orientation === 'vertical';
+  }
+  @HostBinding('class.horizontal')
+  get horizontal() {
+    return this.orientation === 'horizontal';
+  }
+
+  @ContentChildren(NbStepComponent) steps: QueryList<NbStepComponent>;
 
   /**
    * Navigate to next step
    * */
   next() {
-    this.selectedIndex = Math.min(this.index + 1, this.steps.length - 1);
+    this.selectedIndex = Math.min(this.selectedIndex + 1, this.steps.length - 1);
   }
 
   /**
    * Navigate to previous step
    * */
   previous() {
-    this.selectedIndex = Math.max(this.index - 1, 0);
+    this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
   }
 
   /**
    * Reset stepper and stepControls to initial state
    * */
   reset() {
-    this.selectedIndex = 0;
+    this._selectedIndex = 0;
     this.steps.forEach(step => step.reset());
   }
 
   isStepSelected(step: NbStepComponent) {
-    return this.index === this.steps.toArray().indexOf(step);
+    return this.selected === step;
   }
 
-  private isStepValid(index: number): boolean {
-    const steps = this.steps.toArray();
+  /*
+   * @docs-private
+   **/
+  getStepTemplate(step: NbStepComponent): TemplateRef<any> | null {
+    if (step.isLabelTemplate) {
+      return step.label as TemplateRef<any>;
+    }
+    return null;
+  }
 
-    steps[this.index].interacted = true;
+  protected isStepValid(index: number): boolean {
+    return this.steps.toArray()[index].completed;
+  }
 
-    if (index >= this.index && index > 0) {
-      const currentStep = steps[this.index];
-      return currentStep.completed;
+  protected canBeSelected(indexToCheck: number): boolean {
+    const noSteps = !this.steps || this.steps.length === 0;
+    if (noSteps || indexToCheck < 0 || indexToCheck >= this.steps.length) {
+      return false;
     }
 
-    return true;
+    if (indexToCheck <= this.selectedIndex || !this.linear) {
+      return true;
+    }
+
+    let isAllStepsValid = true;
+    for (let i = this.selectedIndex; i < indexToCheck; i++) {
+      if (!this.isStepValid(i)) {
+        isAllStepsValid = false;
+        break;
+      }
+    }
+    return isAllStepsValid;
+  }
+
+  protected markCurrentStepInteracted() {
+    if (this.selected) {
+      this.selected.interacted = true;
+    }
   }
 }

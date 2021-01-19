@@ -5,9 +5,9 @@
  */
 
 import { ChangeDetectionStrategy, Component, Input, OnDestroy, HostBinding } from '@angular/core';
-import { takeWhile, map, publishReplay, refCount } from 'rxjs/operators';
+import { takeUntil, map, publishReplay, refCount } from 'rxjs/operators';
 import { ActivatedRoute } from '@angular/router';
-import { Observable, of as observableOf, combineLatest } from 'rxjs';
+import { Observable, of as observableOf, combineLatest, Subject } from 'rxjs';
 
 @Component({
   selector: 'ngd-page-tabs',
@@ -15,7 +15,7 @@ import { Observable, of as observableOf, combineLatest } from 'rxjs';
   template: `
     <a *ngFor="let item of items$ | async" [class.selected]="item.selected" [routerLink]="['../', item.tab]">
       <div class="text-container">
-        <i class="icon {{ item.icon }}"></i>
+        <nb-icon [icon]="item.icon"></nb-icon>
         <span class="title">{{ item.title }}</span>
       </div>
       <i class="line"></i>
@@ -24,6 +24,8 @@ import { Observable, of as observableOf, combineLatest } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NgdPageTabsComponent implements OnDestroy {
+
+  private destroy$ = new Subject<void>();
 
   items$: Observable<any[]> = observableOf([]);
 
@@ -36,8 +38,8 @@ export class NgdPageTabsComponent implements OnDestroy {
       this.activatedRoute.params.pipe(publishReplay(), refCount()),
     )
     .pipe(
-      takeWhile(() => this.alive),
       map(([tabs, params]) => (tabs.map((item: any) => ({ ...item, selected: item.tab === params.tab })))),
+      takeUntil(this.destroy$),
     );
   }
 
@@ -57,31 +59,31 @@ export class NgdPageTabsComponent implements OnDestroy {
       {
         tab: 'overview',
         title: 'Overview',
-        icon: 'feather-eye',
+        icon: 'eye-outline',
         selected: true,
       },
       {
         tab: 'api',
         title: 'API',
-        icon: 'feather-settings',
+        icon: 'settings-outline',
       },
       {
         tab: 'theme',
         title: 'Theme',
-        icon: 'feather-droplet',
+        icon: 'droplet-outline',
       },
       {
         tab: 'examples',
         title: 'Examples',
-        icon: 'feather-image',
+        icon: 'image-outline',
       },
     ];
-  private alive = true;
 
   constructor(private activatedRoute: ActivatedRoute) {
   }
 
   ngOnDestroy() {
-    this.alive = false;
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

@@ -1,7 +1,7 @@
 import { Injector } from '@angular/core';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { HTTP_INTERCEPTORS, HttpRequest } from '@angular/common/http';
-import { TestBed, async, inject } from '@angular/core/testing';
+import { TestBed, inject, waitForAsync } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { of as observableOf } from 'rxjs';
@@ -16,7 +16,7 @@ import { NbAuthJWTInterceptor, NbAuthService } from '@nebular/auth';
 import { NbTokenService } from '@nebular/auth/services/token/token.service';
 import { NbTokenLocalStorage, NbTokenStorage } from '@nebular/auth/services/token/token-storage';
 import { NB_AUTH_FALLBACK_TOKEN, NbAuthTokenParceler } from '@nebular/auth/services/token/token-parceler';
-import { NbDummyAuthStrategy } from '@nebular/auth/strategies';
+import { NbDummyAuthStrategy } from '@nebular/auth';
 import { nbOptionsFactory, nbStrategiesFactory } from '@nebular/auth/auth.module';
 import { NbAuthJWTToken, NbAuthSimpleToken} from '@nebular/auth/services/token/token';
 
@@ -68,12 +68,12 @@ describe('jwt-interceptor', () => {
         NbDummyAuthStrategy,
       ],
     });
-    authService = TestBed.get(NbAuthService);
-    tokenService = TestBed.get(NbTokenService);
-    dummyAuthStrategy = TestBed.get(NbDummyAuthStrategy);
+    authService = TestBed.inject(NbAuthService);
+    tokenService = TestBed.inject(NbTokenService);
+    dummyAuthStrategy = TestBed.inject(NbDummyAuthStrategy);
   });
 
-    beforeEach(async(
+    beforeEach(waitForAsync(
       inject([HttpClient, HttpTestingController], (_httpClient, _httpMock) => {
         http = _httpClient;
         httpMock = _httpMock;

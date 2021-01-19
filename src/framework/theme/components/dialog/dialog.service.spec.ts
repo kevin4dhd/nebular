@@ -1,12 +1,20 @@
-import { Component, NgModule } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { Component, NgModule, Injectable } from '@angular/core';
+import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 
-import { NbOverlayContainerAdapter, NbOverlayService } from '../cdk';
+import { NbOverlayContainerAdapter } from '../cdk/adapter/overlay-container-adapter';
+import { NbViewportRulerAdapter } from '../cdk/adapter/viewport-ruler-adapter';
+import { NbOverlayService } from '../cdk/overlay/overlay-service';
 import { NbDialogService } from './dialog.service';
 import { NbDialogModule } from './dialog.module';
 import { NbThemeModule } from '../../theme.module';
 import { NB_DOCUMENT } from '../../theme.options';
 
+@Injectable()
+export class NbViewportRulerMockAdapter extends NbViewportRulerAdapter {
+  getViewportSize(): Readonly<{ width: number; height: number; }> {
+    return { width: 1600, height: 900 };
+  }
+}
 
 @Component({ selector: 'nb-test-dialog', template: '<button class="test-focusable-button"></button>' })
 class NbTestDialogComponent {
@@ -36,12 +44,13 @@ describe('dialog-service', () => {
         NbThemeModule.forRoot(),
         NbDialogModule.forRoot(),
       ],
+      providers: [{ provide: NbViewportRulerAdapter, useClass: NbViewportRulerMockAdapter }],
     });
 
-    dialog = TestBed.get(NbDialogService);
-    overlayContainerService = TestBed.get(NbOverlayContainerAdapter);
-    document = TestBed.get(NB_DOCUMENT);
-    overlayService = TestBed.get(NbOverlayService);
+    dialog = TestBed.inject(NbDialogService);
+    overlayContainerService = TestBed.inject(NbOverlayContainerAdapter);
+    document = TestBed.inject(NB_DOCUMENT);
+    overlayService = TestBed.inject(NbOverlayService);
   });
 
   beforeEach(() => {
@@ -67,6 +76,11 @@ describe('dialog-service', () => {
   it('should assign backdropClass if provided', () => {
     dialog.open(NbTestDialogComponent, { backdropClass: 'nb-overlay-test-backdrop-class' });
     expect(overlayContainer.querySelector('.nb-overlay-test-backdrop-class')).toBeTruthy();
+  });
+
+  it('should assign dialogClass if provided', () => {
+    dialog.open(NbTestDialogComponent, { dialogClass: 'nb-overlay-test-dialog-class' });
+    expect(overlayContainer.querySelector('.nb-overlay-test-dialog-class')).toBeTruthy();
   });
 
 
@@ -119,28 +133,32 @@ describe('dialog-service', () => {
     expect(spy).toHaveBeenCalledTimes(0);
   });
 
-  it('should close on backdrop click if closeOnBackdropClick is true', () => {
+  it('should close on backdrop click if closeOnBackdropClick is true', fakeAsync(() => {
     dialog.open(NbTestDialogComponent, { closeOnBackdropClick: true, autoFocus: false });
     queryBackdrop().dispatchEvent(new Event('click'));
+    tick(500);
     expect(queryBackdrop()).toBeFalsy();
-  });
+  }));
 
-  it('should not close on backdrop click if closeOnBackdropClick is false', () => {
+  it('should not close on backdrop click if closeOnBackdropClick is false', fakeAsync(() => {
     dialog.open(NbTestDialogComponent, { closeOnBackdropClick: false });
     queryBackdrop().dispatchEvent(new Event('click'));
+    tick(500);
     expect(queryBackdrop()).toBeTruthy();
-  });
+  }));
 
-  it('should close on escape press if closeOnEsc is true', () => {
+  it('should close on escape press if closeOnEsc is true', fakeAsync(() => {
     dialog.open(NbTestDialogComponent, { closeOnEsc: true });
     document.dispatchEvent(new KeyboardEvent('keyup', <any> { keyCode: 27 }));
+    tick(500);
     expect(queryBackdrop()).toBeFalsy();
-  });
+  }));
 
-  it('should not close on escape press if closeOnEsc is false', () => {
+  it('should not close on escape press if closeOnEsc is false', fakeAsync(() => {
     dialog.open(NbTestDialogComponent, { closeOnEsc: false });
     document.dispatchEvent(new KeyboardEvent('keyup', <any> { keyCode: 27 }));
+    tick(500);
     expect(queryBackdrop()).toBeTruthy();
-  });
+  }));
 });
 

@@ -10,65 +10,34 @@
     position: relative;
   }
 
-  nb-spinner {
-    background-color: nb-theme(spinner-bg);
+  nb-spinner .message {
+    color: nb-theme(spinner-text-color);
+    font-family: nb-theme(spinner-text-font-family);
+    font-size: nb-theme(spinner-text-font-size);
+    font-weight: nb-theme(spinner-text-font-weight);
+    line-height: nb-theme(spinner-text-line-height);
+  }
 
-    &.active-spinner .spin-circle {
-      border-right-color: nb-theme(spinner-active-bg);
-    }
-    &.disabled-spinner .spin-circle {
-      border-right-color: nb-theme(spinner-disabled-bg);
-    }
-    &.primary-spinner .spin-circle {
-      border-right-color: nb-theme(spinner-primary-bg);
-    }
-    &.info-spinner .spin-circle {
-      border-right-color: nb-theme(spinner-info-bg);
-    }
-    &.success-spinner .spin-circle {
-      border-right-color: nb-theme(spinner-success-bg);
-    }
-    &.warning-spinner .spin-circle {
-      border-right-color: nb-theme(spinner-warning-bg);
-    }
-    &.danger-spinner .spin-circle {
-      border-right-color: nb-theme(spinner-danger-bg);
-    }
+  @each $status in nb-get-statuses() {
+    nb-spinner.status-#{$status} {
+      background-color: nb-theme(spinner-#{$status}-background-color);
 
-    .spin-circle {
-      border-left-color: nb-theme(spinner-circle-bg);
-      border-top-color: nb-theme(spinner-circle-bg);
-      border-bottom-color: nb-theme(spinner-circle-bg);
-    }
-
-    .message {
-      color: nb-theme(spinner-fg);
-    }
-
-    &.xxsmall-spinner {
-      font-size: nb-theme(spinner-xxsmall);
-    }
-    &.xsmall-spinner {
-      font-size: nb-theme(spinner-xsmall);
-    }
-    &.small-spinner {
-      font-size: nb-theme(spinner-small);
-    }
-    &.medium-spinner {
-      font-size: nb-theme(spinner-medium);
-    }
-    &.large-spinner {
-      font-size: nb-theme(spinner-large);
-    }
-    &.xlarge-spinner {
-      font-size: nb-theme(spinner-xlarge);
-    }
-    &.xxlarge-spinner {
-      font-size: nb-theme(spinner-xxlarge);
+      .spin-circle {
+        border-top-color: nb-theme(spinner-#{$status}-circle-filled-color);
+        border-right-color: nb-theme(spinner-#{$status}-circle-empty-color);
+        border-bottom-color: nb-theme(spinner-#{$status}-circle-filled-color);
+        border-left-color: nb-theme(spinner-#{$status}-circle-filled-color);
+      }
     }
   }
 
-  @-webkit-keyframes spin {
+  @each $size in nb-get-sizes() {
+    nb-spinner.size-#{$size} {
+      font-size: nb-theme(spinner-height-#{$size});
+    }
+  }
+
+  @keyframes spin {
     0% {
       transform: rotate(0deg);
     }

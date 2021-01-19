@@ -4,47 +4,114 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import {
-  Component,
-  Input,
-  HostBinding,
-} from '@angular/core';
+import { Component, HostBinding, Input } from '@angular/core';
 
-import { convertToBoolProperty } from '../helpers';
+import { convertToBoolProperty, NbBooleanInput } from '../helpers';
+import { NbComponentSize } from '../component-size';
+import { NbComponentOrCustomStatus } from '../component-status';
+import { NbBadgePosition } from '../badge/badge.component';
+import { NbIconConfig } from '../icon/icon.component';
 
 /**
  * Action item, display a link with an icon, or any other content provided instead.
  */
 @Component({
   selector: 'nb-action',
+  styleUrls: ['./action.component.scss'],
   template: `
-    <a class="icon-container" href="#" *ngIf="icon; else showContent" (click)="$event.preventDefault()">
-      <i class="control-icon {{ icon }}"></i>
-    </a>
-    <ng-template #showContent>
+    <ng-container *ngIf="icon; else projectedContent">
+      <a class="icon-container"
+         [routerLink]="link"
+         [title]="title"
+         *ngIf="link">
+        <nb-icon [config]="icon"></nb-icon>
+        <ng-container [ngTemplateOutlet]="badgeTemplate"></ng-container>
+      </a>
+      <a class="icon-container"
+         [href]="href"
+         [title]="title"
+         *ngIf="href && !link">
+        <nb-icon [config]="icon"></nb-icon>
+        <ng-container [ngTemplateOutlet]="badgeTemplate"></ng-container>
+      </a>
+      <a class="icon-container"
+         href="#"
+         [title]="title"
+         *ngIf="!href && !link"
+         (click)="$event.preventDefault()">
+        <nb-icon [config]="icon"></nb-icon>
+        <ng-container [ngTemplateOutlet]="badgeTemplate"></ng-container>
+      </a>
+    </ng-container>
+
+    <ng-template #projectedContent>
       <ng-content></ng-content>
+      <ng-container [ngTemplateOutlet]="badgeTemplate"></ng-container>
     </ng-template>
-    <nb-badge *ngIf="badgeText" [text]="badgeText" [status]="badgeStatus" [position]="badgePosition"></nb-badge>
+    <ng-template #badgeTemplate>
+      <nb-badge *ngIf="badgeText || badgeDot"
+                [text]="badgeText"
+                [dotMode]="badgeDot"
+                [status]="badgeStatus"
+                [position]="badgePosition">
+      </nb-badge>
+    </ng-template>
   `,
 })
 export class NbActionComponent {
 
-  @HostBinding('class.disabled') disabledValue: boolean = false;
-
   /**
-   * Icon class to display
+   * Router link to use
    * @type string
    */
-  @Input() icon: string;
+  @Input() link: string;
 
   /**
-   * Disables the item (changes item opacity and mouse cursor)
+   * Regular HREF link
+   * @type: string
+   */
+  @Input() href: string;
+
+  /**
+   * Optional title for mouseover
+   * @type string
+   */
+  @Input() title: string = '';
+
+  /**
+   * Icon name or config object
+   * @type {string | NbIconConfig}
+   */
+  @Input() icon: string | NbIconConfig;
+
+  /**
+   * Visually disables the item
    * @type boolean
    */
   @Input()
-  set disabled(val: boolean) {
-    this.disabledValue = convertToBoolProperty(val);
+  @HostBinding('class.disabled')
+  get disabled(): boolean {
+    return this._disabled;
   }
+  set disabled(value: boolean) {
+    this._disabled = convertToBoolProperty(value);
+  }
+  protected _disabled: boolean = false;
+  static ngAcceptInputType_disabled: NbBooleanInput;
+
+  /**
+   * Use badge dot mode
+   * @type boolean
+   */
+  @Input()
+  get badgeDot(): boolean {
+    return this._badgeDot;
+  }
+  set badgeDot(value: boolean) {
+    this._badgeDot = convertToBoolProperty(value);
+  }
+  protected _badgeDot: boolean;
+  static ngAcceptInputType_badgeDot: NbBooleanInput;
 
   /**
    * Badge text to display
@@ -54,10 +121,10 @@ export class NbActionComponent {
 
   /**
    * Badge status (adds specific styles):
-   * 'primary', 'info', 'success', 'warning', 'danger'
+   * 'basic', 'primary', 'info', 'success', 'warning', 'danger', 'control'
    * @param {string} val
    */
-  @Input() badgeStatus: string;
+  @Input() badgeStatus: NbComponentOrCustomStatus = 'basic';
 
   /**
    * Badge position.
@@ -66,8 +133,7 @@ export class NbActionComponent {
    * 'top start', 'top end', 'bottom start', 'bottom end'
    * @type string
    */
-  @Input() badgePosition: string;
-
+  @Input() badgePosition: NbBadgePosition;
 }
 
 /**
@@ -90,7 +156,7 @@ export class NbActionComponent {
  * ```ts
  * @NgModule({
  *   imports: [
- *   	// ...
+ *     // ...
  *     NbActionsModule,
  *   ],
  * })
@@ -108,18 +174,42 @@ export class NbActionComponent {
  * and we can set it to full a width of a parent component
  * @stacked-example(Full Width, action/action-width.component)
  *
+ * Action dot mode
+ * @stacked-example(Action badge in dot mode, action/action-dot-mode.component)
+ *
  * @styles
  *
- * actions-font-size:
- * actions-font-family:
- * actions-line-height:
- * actions-fg:
- * actions-bg:
- * actions-separator:
- * actions-padding:
- * actions-size-small:
- * actions-size-medium:
- * actions-size-large:
+ * actions-background-color:
+ * actions-divider-color:
+ * actions-divider-style:
+ * actions-divider-width:
+ * actions-icon-color:
+ * actions-text-color:
+ * actions-text-font-family:
+ * actions-text-font-weight:
+ * actions-text-line-height:
+ * actions-disabled-icon-color:
+ * actions-disabled-text-color:
+ * actions-tiny-height:
+ * actions-tiny-icon-height:
+ * actions-tiny-padding:
+ * actions-tiny-text-font-size:
+ * actions-small-height:
+ * actions-small-icon-height:
+ * actions-small-padding:
+ * actions-small-text-font-size:
+ * actions-medium-height:
+ * actions-medium-icon-height:
+ * actions-medium-padding:
+ * actions-medium-text-font-size:
+ * actions-large-height:
+ * actions-large-icon-height:
+ * actions-large-padding:
+ * actions-large-text-font-size:
+ * actions-giant-height:
+ * actions-giant-icon-height:
+ * actions-giant-padding:
+ * actions-giant-text-font-size:
  */
 @Component({
   selector: 'nb-actions',
@@ -130,56 +220,54 @@ export class NbActionComponent {
 })
 export class NbActionsComponent {
 
-  static readonly SIZE_SMALL = 'small';
-  static readonly SIZE_MEDIUM = 'medium';
-  static readonly SIZE_LARGE = 'large';
-
-  private sizeValue: string;
-
-  @HostBinding('class.inverse') inverseValue: boolean;
-
-  @HostBinding('class.small')
-  get small() {
-    return this.sizeValue === NbActionsComponent.SIZE_SMALL;
-  }
-
-  @HostBinding('class.medium')
-  get medium() {
-    return this.sizeValue === NbActionsComponent.SIZE_MEDIUM;
-  }
-
-  @HostBinding('class.large')
-  get large() {
-    return this.sizeValue === NbActionsComponent.SIZE_LARGE;
-  }
-
-  @HostBinding('class.full-width')
-  fullWidthValue: boolean = false;
-
   /**
-   * Size of the component, small|medium|large
-   * @type string
+   * Size of the component: 'tiny', 'small' (default), 'medium', 'large', 'giant'
    */
   @Input()
-  set size(val: string) {
-    this.sizeValue = val;
+  get size(): NbComponentSize {
+    return this._size;
   }
-
-  /**
-   * Makes colors inverse based on current theme
-   * @type boolean
-   */
-  @Input()
-  set inverse(val: boolean) {
-    this.inverseValue = convertToBoolProperty(val);
+  set size(value: NbComponentSize) {
+    this._size = value;
   }
+  protected _size: NbComponentSize = 'small';
 
   /**
    * Component will fill full width of the container
-   * @type boolean
    */
   @Input()
-  set fullWidth(val: boolean) {
-    this.fullWidthValue = convertToBoolProperty(val);
+  @HostBinding('class.full-width')
+  get fullWidth(): boolean {
+    return this._fullWidth;
+  }
+  set fullWidth(value: boolean) {
+    this._fullWidth = convertToBoolProperty(value);
+  }
+  protected _fullWidth: boolean = false;
+  static ngAcceptInputType_fullWidth: NbBooleanInput;
+
+  @HostBinding('class.size-tiny')
+  get tiny(): boolean {
+    return this.size === 'tiny';
+  }
+
+  @HostBinding('class.size-small')
+  get small(): boolean {
+    return this.size === 'small';
+  }
+
+  @HostBinding('class.size-medium')
+  get medium(): boolean {
+    return this.size === 'medium';
+  }
+
+  @HostBinding('class.size-large')
+  get large(): boolean {
+    return this.size === 'large';
+  }
+
+  @HostBinding('class.size-giant')
+  get giant(): boolean {
+    return this.size === 'giant';
   }
 }

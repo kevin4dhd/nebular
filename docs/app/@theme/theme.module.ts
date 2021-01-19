@@ -16,7 +16,13 @@ import {
   NbSidebarModule,
   NbCardModule,
   NbCheckboxModule,
+  NbIconModule,
+  NbButtonModule,
+  NbSelectModule,
+  NbInputModule,
 } from '@nebular/theme';
+
+import { NbEvaIconsModule } from '@nebular/eva-icons';
 
 import {
   NgdHeaderComponent,
@@ -30,7 +36,8 @@ import {
   NgdColorSwatchDirective,
   NgdDescriptionDirective,
   NgdSearchComponent,
-} from './components/';
+  NgdEvaComponent,
+} from './components';
 
 import {
   NgdHighlightService,
@@ -41,12 +48,13 @@ import {
   NgdIframeCommunicatorService,
   NgdStylesService,
   NgdVersionService,
-  NgdTocStateService,
+  NgdVisibilityService,
   NgdPaginationService,
   NgdAnalytics,
   NgdMenuService,
+  NgdMetadataService,
 } from './services';
-
+import { AkveoServicesBanner } from './components/hubspot-cta/akveo-services-banner.component';
 
 @NgModule({
   imports: [
@@ -56,6 +64,11 @@ import {
     NbCardModule,
     NbMenuModule,
     NbTabsetModule,
+    NbIconModule,
+    NbButtonModule,
+    NbSelectModule,
+    NbInputModule,
+    NbEvaIconsModule,
     RouterModule,
   ],
   declarations: [
@@ -70,12 +83,15 @@ import {
     NgdColorSwatchDirective,
     NgdDescriptionDirective,
     NgdSearchComponent,
+    NgdEvaComponent,
+    AkveoServicesBanner,
   ],
   exports: [
     CommonModule,
     RouterModule,
     ReactiveFormsModule,
     FormsModule,
+    NbIconModule,
     NbLayoutModule,
     NbSidebarModule,
     NbCardModule,
@@ -92,11 +108,13 @@ import {
     NgdPageTabsComponent,
     NgdColorSwatchDirective,
     NgdDescriptionDirective,
+    NgdEvaComponent,
+    AkveoServicesBanner,
   ],
 })
 export class NgdThemeModule {
-  static forRoot(): ModuleWithProviders {
-    return <ModuleWithProviders>{
+  static forRoot(): ModuleWithProviders<NgdThemeModule> {
+    return {
       ngModule: NgdThemeModule,
       providers: [
         NgdHighlightService,
@@ -107,10 +125,11 @@ export class NgdThemeModule {
         NgdIframeCommunicatorService,
         NgdStylesService,
         NgdVersionService,
-        NgdTocStateService,
         NgdPaginationService,
         NgdAnalytics,
         NgdMenuService,
+        NgdVisibilityService,
+        NgdMetadataService,
       ],
     };
   }

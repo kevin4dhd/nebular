@@ -4,8 +4,20 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import { AfterViewInit, Component, ComponentFactoryResolver, Input, TemplateRef, Type, ViewChild } from '@angular/core';
-import { NbComponentPortal, NbOverlayContainerComponent, NbPositionedContainer, NbTemplatePortal } from '../cdk';
+import {
+  Component,
+  ComponentFactoryResolver,
+  Input,
+  TemplateRef,
+  Type,
+  ViewChild,
+} from '@angular/core';
+import { NbComponentPortal, NbTemplatePortal } from '../cdk/overlay/mapping';
+import {
+  NbOverlayContainerComponent,
+  NbPositionedContainerComponent,
+  NbRenderableContainer,
+} from '../cdk/overlay/overlay-container';
 
 
 /**
@@ -14,10 +26,18 @@ import { NbComponentPortal, NbOverlayContainerComponent, NbPositionedContainer, 
  *
  * @styles
  *
- * popover-fg
- * popover-bg
- * popover-border
- * popover-shadow
+ * popover-text-color:
+ * popover-text-font-family:
+ * popover-text-font-size:
+ * popover-text-font-weight:
+ * popover-text-line-height:
+ * popover-background-color:
+ * popover-border-width:
+ * popover-border-color:
+ * popover-border-radius:
+ * popover-shadow:
+ * popover-arrow-size:
+ * popover-padding:
  * */
 @Component({
   selector: 'nb-popover',
@@ -27,14 +47,23 @@ import { NbComponentPortal, NbOverlayContainerComponent, NbPositionedContainer, 
     <nb-overlay-container></nb-overlay-container>
   `,
 })
-export class NbPopoverComponent extends NbPositionedContainer implements AfterViewInit {
+export class NbPopoverComponent extends NbPositionedContainerComponent implements NbRenderableContainer {
   @ViewChild(NbOverlayContainerComponent) overlayContainer: NbOverlayContainerComponent;
 
   @Input() content: any;
   @Input() context: Object;
   @Input() cfr: ComponentFactoryResolver;
 
-  ngAfterViewInit() {
+  renderContent() {
+    this.detachContent();
+    this.attachContent();
+  }
+
+  protected detachContent() {
+    this.overlayContainer.detach();
+  }
+
+  protected attachContent() {
     if (this.content instanceof TemplateRef) {
       this.attachTemplate();
     } else if (this.content instanceof Type) {
@@ -45,13 +74,13 @@ export class NbPopoverComponent extends NbPositionedContainer implements AfterVi
   }
 
   protected attachTemplate() {
-    this.overlayContainer.attachTemplatePortal(new NbTemplatePortal(this.content, null, this.context));
+    this.overlayContainer
+      .attachTemplatePortal(new NbTemplatePortal(this.content, null, <any>{ $implicit: this.context }));
   }
 
   protected attachComponent() {
     const portal = new NbComponentPortal(this.content, null, null, this.cfr);
-    const ref = this.overlayContainer.attachComponentPortal(portal);
-    Object.assign(ref.instance, this.context);
+    const ref = this.overlayContainer.attachComponentPortal(portal, this.context);
     ref.changeDetectorRef.detectChanges();
   }
 

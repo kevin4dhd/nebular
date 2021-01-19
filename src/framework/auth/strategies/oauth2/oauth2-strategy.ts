@@ -11,12 +11,8 @@ import { switchMap, map, catchError } from 'rxjs/operators';
 import { NB_WINDOW } from '@nebular/theme';
 
 import { NbAuthStrategy } from '../auth-strategy';
-import {
-  NbAuthIllegalTokenError,
-  NbAuthRefreshableToken,
-  NbAuthResult,
-  NbAuthToken,
-} from '../../services/';
+import { NbAuthIllegalTokenError, NbAuthRefreshableToken, NbAuthToken } from '../../services/token/token';
+import { NbAuthResult } from '../../services/auth-result';
 import {
   NbOAuth2AuthStrategyOptions,
   NbOAuth2ResponseType,
@@ -59,7 +55,7 @@ import { NbAuthStrategyClass } from '../../auth.options';
  *     endpoint?: string;
  *     redirectUri?: string;
  *     responseType?: string;
- *     requireValidToken: false,
+ *     requireValidToken: true,
  *     scope?: string;
  *     state?: string;
  *     params?: { [key: string]: string };
@@ -70,7 +66,7 @@ import { NbAuthStrategyClass } from '../../auth.options';
  *   token?: {
  *     endpoint?: string;
  *     grantType?: string;
- *     requireValidToken: false,
+ *     requireValidToken: true,
  *     redirectUri?: string;
  *     scope?: string;
  *     class: NbAuthTokenClass,
@@ -83,7 +79,7 @@ import { NbAuthStrategyClass } from '../../auth.options';
  *     endpoint?: string;
  *     grantType?: string;
  *     scope?: string;
- *     requireValidToken: false,
+ *     requireValidToken: true,
  *   } = {
  *     endpoint: 'token',
  *     grantType: NbOAuth2GrantType.REFRESH_TOKEN,
@@ -107,7 +103,7 @@ export class NbOAuth2AuthStrategy extends NbAuthStrategy {
     return this.getOption('clientAuthMethod');
   }
 
-  protected redirectResultHandlers = {
+  protected redirectResultHandlers: { [key: string]: Function } = {
     [NbOAuth2ResponseType.CODE]: () => {
       return observableOf(this.route.snapshot.queryParams).pipe(
         switchMap((params: any) => {
@@ -168,7 +164,7 @@ export class NbOAuth2AuthStrategy extends NbAuthStrategy {
     },
   };
 
-  protected redirectResults = {
+  protected redirectResults: { [key: string]: Function } = {
     [NbOAuth2ResponseType.CODE]: () => {
       return observableOf(this.route.snapshot.queryParams).pipe(
         map((params: any) => !!(params && (params.code || params.error))),
@@ -185,8 +181,8 @@ export class NbOAuth2AuthStrategy extends NbAuthStrategy {
   protected defaultOptions: NbOAuth2AuthStrategyOptions = auth2StrategyOptions;
 
   constructor(protected http: HttpClient,
-              private route: ActivatedRoute,
-              @Inject(NB_WINDOW) private window: any) {
+              protected route: ActivatedRoute,
+              @Inject(NB_WINDOW) protected window: any) {
     super();
   }
 
@@ -223,7 +219,10 @@ export class NbOAuth2AuthStrategy extends NbAuthStrategy {
     const url = this.getActionEndpoint(module);
     const requireValidToken = this.getOption(`${module}.requireValidToken`);
 
-    return this.http.post(url, this.buildRefreshRequestData(token), { headers: this.buildAuthHeader() })
+    let headers = this.buildAuthHeader() || new HttpHeaders() ;
+    headers = headers.append('Content-Type', 'application/x-www-form-urlencoded');
+
+    return this.http.post(url, this.buildRefreshRequestData(token), { headers: headers })
       .pipe(
         map((res) => {
           return new NbAuthResult(
@@ -275,7 +274,10 @@ export class NbOAuth2AuthStrategy extends NbAuthStrategy {
     const url = this.getActionEndpoint(module);
     const requireValidToken = this.getOption(`${module}.requireValidToken`);
 
-    return this.http.post(url, this.buildCodeRequestData(code), { headers: this.buildAuthHeader() })
+    let headers = this.buildAuthHeader() || new HttpHeaders() ;
+    headers = headers.append('Content-Type', 'application/x-www-form-urlencoded');
+
+    return this.http.post(url, this.buildCodeRequestData(code), { headers: headers })
       .pipe(
         map((res) => {
           return new NbAuthResult(
@@ -297,7 +299,7 @@ export class NbOAuth2AuthStrategy extends NbAuthStrategy {
       redirect_uri: this.getOption('token.redirectUri'),
       client_id: this.getOption('clientId'),
     };
-    return this.cleanParams(this.addCredentialsToParams(params));
+    return this.urlEncodeParameters(this.cleanParams(this.addCredentialsToParams(params)));
   }
 
   protected buildRefreshRequestData(token: NbAuthRefreshableToken): any {
@@ -305,8 +307,9 @@ export class NbOAuth2AuthStrategy extends NbAuthStrategy {
       grant_type: this.getOption('refresh.grantType'),
       refresh_token: token.getRefreshToken(),
       scope: this.getOption('refresh.scope'),
+      client_id: this.getOption('clientId'),
     };
-    return this.cleanParams(this.addCredentialsToParams(params));
+    return this.urlEncodeParameters(this.cleanParams(this.addCredentialsToParams(params)));
   }
 
   protected buildPasswordRequestData(username: string, password: string ): string {

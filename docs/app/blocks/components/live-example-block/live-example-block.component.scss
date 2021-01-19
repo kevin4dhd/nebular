@@ -6,10 +6,12 @@
   // colors
   $action-bg: white;
   $action-fg: nb-theme(color-fg-heading-light);
-  $block-bg-default: #ebeff5;
-  $block-bg-cosmic: #2f296b;
-  $block-fg-cosmic: #7d838b;
-  $block-bg-corporate: #f1f5f8;
+  $block-bg-default: #edf0f4;
+  $block-bg-cosmic: #1b1b38;
+  $block-fg-cosmic: #e8e9fa;
+  $block-bg-corporate: #edf0f4;
+  $block-bg-dark: #151a30;
+  $block-fg-dark: #f7f8fa;
 
   display: flex;
   flex-direction: column;
@@ -40,7 +42,7 @@
     display: flex;
     width: 100%;
 
-    .icon {
+    nb-icon {
       font-size: 0.95rem;
     }
   }
@@ -73,7 +75,7 @@
       color: transparent;
     }
 
-    .icon {
+    nb-icon {
       color: $action-fg;
       position: absolute;
       top: 50%;
@@ -102,8 +104,13 @@
     .title {
       color: white;
     }
-    .action-item {
-      color: $block-fg-cosmic;
+  }
+
+  &.theme-dark {
+    background-color: $block-bg-dark;
+
+    .title {
+      color: white;
     }
   }
 
@@ -156,7 +163,7 @@
         padding: 0 2.5rem;
       }
 
-      .icon {
+      nb-icon {
         left: 1.25rem;
         transform: translate(0, -50%);
       }

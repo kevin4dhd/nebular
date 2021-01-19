@@ -5,9 +5,13 @@
  */
 
 import { Component, HostBinding, Input } from '@angular/core';
-
-import { NbPosition } from '../cdk';
 import { animate, state, style, transition, trigger } from '@angular/animations';
+
+import { NbStatusService } from '../../services/status.service';
+import { NbComponentOrCustomStatus } from '../component-status';
+import { NbRenderableContainer } from '../cdk/overlay/overlay-container';
+import { NbPosition } from '../cdk/overlay/overlay-position';
+import { NbIconConfig } from '../icon/icon.component';
 
 
 /**
@@ -16,16 +20,42 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
  *
  * @styles
  *
- * tooltip-bg
- * tooltip-primary-bg
- * tooltip-info-bg
- * tooltip-success-bg
- * tooltip-warning-bg
- * tooltip-danger-bg
- * tooltip-fg
- * tooltip-shadow
- * tooltip-font-size
- *
+ * tooltip-background-color:
+ * tooltip-border-color:
+ * tooltip-border-style:
+ * tooltip-border-width:
+ * tooltip-border-radius:
+ * tooltip-padding:
+ * tooltip-text-color:
+ * tooltip-text-font-family:
+ * tooltip-text-font-size:
+ * tooltip-text-font-weight:
+ * tooltip-text-line-height:
+ * tooltip-icon-height:
+ * tooltip-icon-width:
+ * tooltip-max-width:
+ * tooltip-basic-background-color:
+ * tooltip-basic-border-color:
+ * tooltip-basic-text-color:
+ * tooltip-primary-background-color:
+ * tooltip-primary-border-color:
+ * tooltip-primary-text-color:
+ * tooltip-info-background-color:
+ * tooltip-info-border-color:
+ * tooltip-info-text-color:
+ * tooltip-success-background-color:
+ * tooltip-success-border-color:
+ * tooltip-success-text-color:
+ * tooltip-warning-background-color:
+ * tooltip-warning-border-color:
+ * tooltip-warning-text-color:
+ * tooltip-danger-background-color:
+ * tooltip-danger-border-color:
+ * tooltip-danger-text-color:
+ * tooltip-control-background-color:
+ * tooltip-control-border-color:
+ * tooltip-control-text-color:
+ * tooltip-shadow:
  */
 @Component({
   selector: 'nb-tooltip',
@@ -33,7 +63,7 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
   template: `
     <span class="arrow"></span>
     <div class="content">
-      <i *ngIf="context?.icon" class="icon {{ context?.icon }}"></i>
+      <nb-icon *ngIf="context?.icon" [config]="context.icon"></nb-icon>
       <span *ngIf="content">{{ content }}</span>
     </div>
   `,
@@ -50,7 +80,7 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
     ]),
   ],
 })
-export class NbTooltipComponent {
+export class NbTooltipComponent implements NbRenderableContainer {
 
   @Input()
   content: string;
@@ -63,7 +93,7 @@ export class NbTooltipComponent {
 
   @HostBinding('class')
   get binding() {
-    return `${this.position} ${this.context.status}-tooltip`;
+    return `${this.position} ${this.statusClass}`;
   }
 
   @HostBinding('@showTooltip')
@@ -72,5 +102,22 @@ export class NbTooltipComponent {
   }
 
   @Input()
-  context: { icon?: string, status?: string } = {};
+  context: { icon?: string | NbIconConfig, status?: NbComponentOrCustomStatus } = {};
+
+  get statusClass() {
+    if (this.context.status) {
+      return this.statusService.getStatusClass(this.context.status);
+    }
+
+    return '';
+  }
+
+  constructor(protected statusService: NbStatusService) {
+  }
+
+  /**
+   * The method is empty since we don't need to do anything additionally
+   * render is handled by change detection
+   */
+  renderContent() {}
 }

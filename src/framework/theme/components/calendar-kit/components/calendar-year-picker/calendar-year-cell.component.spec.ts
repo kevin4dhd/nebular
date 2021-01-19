@@ -6,7 +6,8 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { NbDateService, NbNativeDateService } from '../../services';
+import { NbDateService } from '../../services/date.service';
+import { NbNativeDateService } from '../../services/native-date.service';
 import { NbCalendarYearCellComponent } from './calendar-year-cell.component';
 import { DatePipe } from '@angular/common';
 
@@ -41,6 +42,8 @@ describe('Component: NbCalendarYearCell', () => {
   });
 
   it('should contain cell class', () => {
+    component.date = new Date();
+    fixture.detectChanges();
     expect(componentEl.classList).toContain('year-cell');
   });
 

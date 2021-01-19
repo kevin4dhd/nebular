@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import { NbAuthSimpleToken, NbAuthTokenClass } from '../../services';
+import { NbAuthSimpleToken, NbAuthTokenClass } from '../../services/token/token';
 import { NbAuthStrategyOptions } from '../auth-strategy-options';
 import { getDeepFromObject } from '../../helpers';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
@@ -38,12 +38,12 @@ export interface NbPasswordStrategyMessage {
 }
 
 export class NbPasswordAuthStrategyOptions extends NbAuthStrategyOptions {
-  baseEndpoint? = '/api/auth/';
+  baseEndpoint?: string = '/api/auth/';
   login?: boolean | NbPasswordStrategyModule = {
     alwaysFail: false,
     endpoint: 'login',
     method: 'post',
-    requireValidToken: false,
+    requireValidToken: true,
     redirect: {
       success: '/',
       failure: null,
@@ -55,7 +55,7 @@ export class NbPasswordAuthStrategyOptions extends NbAuthStrategyOptions {
     alwaysFail: false,
     endpoint: 'register',
     method: 'post',
-    requireValidToken: false,
+    requireValidToken: true,
     redirect: {
       success: '/',
       failure: null,
@@ -98,7 +98,7 @@ export class NbPasswordAuthStrategyOptions extends NbAuthStrategyOptions {
   refreshToken?: boolean | NbPasswordStrategyModule = {
     endpoint: 'refresh-token',
     method: 'post',
-    requireValidToken: false,
+    requireValidToken: true,
     redirect: {
       success: null,
       failure: null,

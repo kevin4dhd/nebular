@@ -4,102 +4,61 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-@mixin nb-select-status($status) {
-  border: nb-theme(select-border-width) solid nb-theme(color-#{$status});
-
-  nb-option {
-    &:hover, &.selected {
-      background-color: nb-theme(color-#{$status});
-      color: nb-theme(color-white);
-    }
-  }
-}
+@import './select-outline';
+@import './select-filled';
+@import './select-hero';
 
 @mixin nb-select-theme() {
-  nb-select > button[nbButton] {
-    transition: all 0.1s;
+  nb-select .select-button {
+    min-width: nb-theme(select-min-width);
+    cursor: nb-theme(select-cursor);
+    font-family: nb-theme(select-text-font-family);
 
-    &::after {
-      @include nb-rtl(left, 0.75rem);
-      @include nb-rtl(right, auto);
+    &.placeholder {
+      font-family: nb-theme(select-placeholder-text-font-family);
     }
-
-    &.opened {
-      &.top {
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
-      }
-
-      &.bottom {
-        border-bottom-left-radius: 0;
-        border-bottom-right-radius: 0;
-      }
+    &:focus {
+      outline: none;
+    }
+    &[disabled] {
+      cursor: nb-theme(select-disabled-cursor);
     }
   }
 
-  nb-card.select {
-    background-color: nb-theme(select-bg);
-    max-height: nb-theme(select-max-height);
-    margin-bottom: 0;
-    box-shadow: none;
+  @each $size in nb-get-sizes() {
+    nb-select.size-#{$size} {
+      .select-button {
+        font-size: nb-theme(select-#{$size}-text-font-size);
+        font-weight: nb-theme(select-#{$size}-text-font-weight);
+        line-height: nb-theme(select-#{$size}-text-line-height);
 
-    nb-card-body {
-      padding: 0;
-    }
+        &.placeholder {
+          font-size: nb-theme(select-#{$size}-placeholder-text-font-size);
+          font-weight: nb-theme(select-#{$size}-placeholder-text-font-weight);
+        }
 
-    nb-option {
-      padding: nb-theme(select-option-padding);
-    }
-
-    &.primary {
-      @include nb-select-status(primary);
-    }
-
-    &.danger {
-      @include nb-select-status(danger);
-    }
-
-    &.warning {
-      @include nb-select-status(warning);
-    }
-
-    &.info {
-      @include nb-select-status(info);
-    }
-
-    &.success {
-      @include nb-select-status(success);
-    }
-
-    &.bottom {
-      border-top-left-radius: 0;
-      border-top-right-radius: 0;
-    }
-
-    &.top {
-      border-bottom-left-radius: 0;
-      border-bottom-right-radius: 0;
-    }
-
-    nb-checkbox {
-      .customised-control-description {
-        color: inherit;
-      }
-
-      .customised-control-input:checked ~ .customised-control-indicator {
-        border-color: nb-theme(select-checkbox-color);
-
-        &::before {
-          border-color: nb-theme(select-checkmark-color);
+        &.empty::before {
+          content: ' ';
+          display: block;
+          height: nb-theme(select-#{$size}-text-line-height);
         }
       }
-    }
 
-    nb-option, nb-option-group {
-      &.disabled {
-        background-color: nb-theme(select-option-disabled-bg);
-        opacity: nb-theme(select-option-disabled-opacity);
+      &:not(.full-width) {
+        max-width: nb-theme(select-#{$size}-max-width);
       }
     }
   }
+
+  @each $shape in nb-get-shapes() {
+    nb-select.shape-#{$shape} .select-button {
+      border-radius: nb-theme(select-#{$shape}-border-radius);
+    }
+  }
+
+  @include select-outline();
+  @include select-filled();
+  @include select-hero();
+
+  @include nb-form-field-root-component('nb-select');
 }

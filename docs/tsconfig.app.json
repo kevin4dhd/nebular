@@ -12,27 +12,28 @@
     ],
     "outDir": "../out-tsc/app",
     "target": "es5",
-    "module": "es2015",
     "baseUrl": ".",
-    "types": [],
+    "types": ["node"],
     "paths": {
-      "@nebular/theme": ["../src/framework/theme"],
-      "@nebular/theme/*": ["../src/framework/theme/*"],
-      "@nebular/auth": ["../src/framework/auth"],
-      "@nebular/security": ["../src/framework/security"]
+      "@nebular/theme": ["../src/framework/theme/public_api.ts"],
+      "@nebular/auth": ["../src/framework/auth/public_api.ts"],
+      "@nebular/security": ["../src/framework/security/public_api.ts"],
+      "@nebular/eva-icons": ["../src/framework/eva-icons/public_api.ts"],
+      "@nebular/firebase-auth": ["../src/framework/firebase-auth/public_api.ts"],
+      "@nebular/date-fns": ["../src/framework/date-fns/public_api.ts"],
+      "@nebular/moment": ["../src/framework/moment/public_api.ts"]
     }
   },
+  "files": [
+    "main.ts",
+    "polyfills.ts"
+  ],
   "exclude": [
     "test.ts",
     "**/*.spec.ts",
     "../src/framework/**/*.spec.ts",
     "assets/**/*.ts",
-    "dist/**/*"
-  ],
-  "include": [
-    "../docs/**/*",
-    "../src/playground/**/*",
-    "../src/framework/**/*",
-    "../src/app/dynamic.component.ts"
+    "dist/**/*",
+    "../src/framework/**/schematics/**/*"
   ]
 }

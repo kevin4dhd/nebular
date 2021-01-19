@@ -23,14 +23,14 @@ export const pulse = animation(
       <ngd-live-example-block [hidden]="!isLive"
                               [@exampleState]="isLive ? 'live': 'code'"
                               [content]="content"
-                              hasViewSwitch="true"
+                              [hasViewSwitch]="true"
                               (changeView)="changeView($event)">
       </ngd-live-example-block>
 
       <ngd-tabbed-example-block [hidden]="isLive"
                                 [@exampleState]="isLive ? 'live': 'code'"
                                 [content]="content"
-                                hasViewSwitch="true"
+                                [hasViewSwitch]="true"
                                 (changeView)="changeView($event)">
       </ngd-tabbed-example-block>
     </div>
@@ -55,7 +55,7 @@ export class NgdStackedExampleComponent {
   }
 
   changeView(view: NgdExampleView) {
-    this.analytics.trackEvent('change-example-view', view);
+    this.analytics.trackEvent('changeExampleView', view);
     this.isLive = view === NgdExampleView.LIVE;
   }
 }

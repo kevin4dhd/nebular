@@ -6,32 +6,32 @@
 
 import {
   AfterViewInit,
-  ComponentFactoryResolver,
   ComponentRef,
   Directive,
   ElementRef,
-  Inject,
+  HostBinding,
   Input,
+  OnChanges,
   OnDestroy,
+  OnInit,
+  SimpleChanges,
 } from '@angular/core';
-import { filter, takeWhile } from 'rxjs/operators';
+import { filter, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 
-import {
-  createContainer,
-  NbAdjustableConnectedPositionStrategy,
-  NbAdjustment,
-  NbOverlayRef,
-  NbOverlayService,
-  NbPosition,
-  NbPositionBuilderService,
-  NbTrigger,
-  NbTriggerStrategy,
-  NbTriggerStrategyBuilder,
-  patch,
-} from '../cdk';
+import { NbDynamicOverlay, NbDynamicOverlayController } from '../cdk/overlay/dynamic/dynamic-overlay';
+import { NbDynamicOverlayHandler } from '../cdk/overlay/dynamic/dynamic-overlay-handler';
+import { NbOverlayConfig, NbOverlayRef } from '../cdk/overlay/mapping';
+import { NbAdjustableConnectedPositionStrategy, NbAdjustment, NbPosition } from '../cdk/overlay/overlay-position';
+import { NbTrigger, NbTriggerValues } from '../cdk/overlay/overlay-trigger';
 import { NbContextMenuComponent } from './context-menu.component';
 import { NbMenuItem, NbMenuService } from '../menu/menu.service';
-import { NB_DOCUMENT } from '../../theme.options';
+
+export interface NbContextMenuContext {
+  items: NbMenuItem[];
+  tag: string;
+  position: NbPosition;
+}
 
 /**
  * Full featured context menu directive.
@@ -51,12 +51,23 @@ import { NB_DOCUMENT } from '../../theme.options';
  * ```ts
  * @NgModule({
  *   imports: [
- *   	// ...
+ *     // ...
  *     NbContextMenuModule,
  *   ],
  * })
  * export class PageModule { }
  * ```
+ * Also make sure `NbMenuModule` is imported to your `app.module`.
+ * ```ts
+ * @NgModule({
+ *   imports: [
+ *     // ...
+ *     NbMenuModule.forRoot(),
+ *   ],
+ * })
+ * export class AppModule { }
+ * ```
+ *
  * ### Usage
  *
  * If you want to handle context menu clicks you have to pass `nbContextMenuTag`
@@ -88,16 +99,50 @@ import { NB_DOCUMENT } from '../../theme.options';
  * ```ts
  * items = [{ title: 'Profile' }, { title: 'Log out' }];
  * ```
+ * Context menu has a number of triggers which provides an ability to show and hide the component in different ways:
+ *
+ * - Click mode shows the component when a user clicks on the host element and hides when the user clicks
+ * somewhere on the document outside the component.
+ * - Hint provides capability to show the component when the user hovers over the host element
+ * and hide when the user hovers out of the host.
+ * - Hover works like hint mode with one exception - when the user moves mouse from host element to
+ * the container element the component remains open, so that it is possible to interact with it content.
+ * - Focus mode is applied when user focuses the element.
+ * - Noop mode - the component won't react to the user interaction.
+ *
+ * @stacked-example(Available Triggers, context-menu/context-menu-modes.component.html)
+ *
+ * Noop mode is especially useful when you need to control Popover programmatically, for example show/hide
+ * as a result of some third-party action, like HTTP request or validation check:
+ *
+ * @stacked-example(Manual Control, context-menu/context-menu-noop.component)
+ *
+ * @stacked-example(Manual Control, context-menu/context-menu-right-click.component)
  * */
-@Directive({ selector: '[nbContextMenu]' })
-export class NbContextMenuDirective implements AfterViewInit, OnDestroy {
+@Directive({
+  selector: '[nbContextMenu]',
+  providers: [NbDynamicOverlayHandler, NbDynamicOverlay],
+})
+export class NbContextMenuDirective implements NbDynamicOverlayController, OnChanges, AfterViewInit, OnDestroy, OnInit {
+
+  @HostBinding('class.context-menu-host')
+  contextMenuHost = true;
 
   /**
    * Position will be calculated relatively host element based on the position.
    * Can be top, right, bottom and left.
    * */
   @Input('nbContextMenuPlacement')
-  position: NbPosition = NbPosition.BOTTOM;
+  get position(): NbPosition {
+    return this._position;
+  }
+  set position(value: NbPosition) {
+    if (value !== this.position) {
+      this._position = value;
+      this.updateOverlayContext();
+    }
+  }
+  _position: NbPosition = NbPosition.BOTTOM;
 
   /**
    * Container position will be changes automatically based on this strategy if container can't fit view port.
@@ -111,96 +156,109 @@ export class NbContextMenuDirective implements AfterViewInit, OnDestroy {
    * Set NbMenu tag, which helps identify menu when working with NbMenuService.
    * */
   @Input('nbContextMenuTag')
-  tag: string;
+  get tag(): string {
+    return this._tag;
+  }
+  set tag(value: string) {
+    if (value !== this.tag) {
+      this._tag = value;
+      this.updateOverlayContext();
+    }
+  }
+  _tag: string;
 
   /**
    * Basic menu items, will be passed to the internal NbMenuComponent.
    * */
   @Input('nbContextMenu')
-  set setItems(items: NbMenuItem[]) {
+  get items(): NbMenuItem[] {
+    return this._items;
+  }
+  set items(items: NbMenuItem[]) {
     this.validateItems(items);
-    this.items = items;
+    this._items = items;
+    this.updateOverlayContext();
   };
+
+  /**
+   * Describes when the container will be shown.
+   * Available options: `click`, `hover`, `hint`, `focus` and `noop`
+   * */
+  @Input('nbContextMenuTrigger')
+  trigger: NbTrigger = NbTrigger.CLICK;
+  static ngAcceptInputType_trigger: NbTriggerValues;
+
+  @Input('nbContextMenuClass')
+  get contextMenuClass(): string {
+    return this._contextMenuClass;
+  }
+  set contextMenuClass(value: string) {
+    if (value !== this.contextMenuClass) {
+      this._contextMenuClass = value;
+      this.overlayConfig = { panelClass: this.contextMenuClass };
+    }
+  }
+  _contextMenuClass: string = '';
 
   protected ref: NbOverlayRef;
   protected container: ComponentRef<any>;
   protected positionStrategy: NbAdjustableConnectedPositionStrategy;
-  protected triggerStrategy: NbTriggerStrategy;
-  protected alive: boolean = true;
-  private items: NbMenuItem[] = [];
+  protected overlayConfig: NbOverlayConfig = { panelClass: this.contextMenuClass } ;
+  protected overlayContext: NbContextMenuContext = { items: this.items, tag: this.tag, position: this.position };
+  protected destroy$ = new Subject<void>();
+  private _items: NbMenuItem[] = [];
 
-  constructor(@Inject(NB_DOCUMENT) protected document,
+  private dynamicOverlay: NbDynamicOverlay;
+
+  constructor(private hostRef: ElementRef,
               private menuService: NbMenuService,
-              private hostRef: ElementRef,
-              private positionBuilder: NbPositionBuilderService,
-              private overlay: NbOverlayService,
-              private componentFactoryResolver: ComponentFactoryResolver) {
+              private dynamicOverlayHandler: NbDynamicOverlayHandler) {
+  }
+
+  ngOnInit() {
+    this.dynamicOverlayHandler
+      .host(this.hostRef)
+      .componentType(NbContextMenuComponent);
+  }
+
+  ngOnChanges() {
+    this.rebuild();
   }
 
   ngAfterViewInit() {
-    this.positionStrategy = this.createPositionStrategy();
-    this.ref = this.overlay.create({
-      positionStrategy: this.positionStrategy,
-      scrollStrategy: this.overlay.scrollStrategies.reposition(),
-    });
-    this.triggerStrategy = this.createTriggerStrategy();
-
-    this.subscribeOnTriggers();
-    this.subscribeOnPositionChange();
+    this.dynamicOverlay = this.configureDynamicOverlay()
+      .build();
     this.subscribeOnItemClick();
   }
 
-  ngOnDestroy() {
-    this.alive = false;
-    this.hide();
+  rebuild() {
+    this.dynamicOverlay = this.configureDynamicOverlay()
+      .rebuild();
   }
 
   show() {
-    this.container = createContainer(this.ref, NbContextMenuComponent, {
-      position: this.position,
-      items: this.items,
-      tag: this.tag,
-    }, this.componentFactoryResolver);
+    this.dynamicOverlay.show();
   }
 
   hide() {
-    this.ref.detach();
-    this.container = null;
+    this.dynamicOverlay.hide();
   }
 
   toggle() {
-    if (this.ref && this.ref.hasAttached()) {
-      this.hide();
-    } else {
-      this.show();
-    }
+    this.dynamicOverlay.toggle();
   }
 
-  protected createPositionStrategy(): NbAdjustableConnectedPositionStrategy {
-    return this.positionBuilder
-      .connectedTo(this.hostRef)
+  ngOnDestroy() {
+    this.dynamicOverlayHandler.destroy();
+  }
+
+  protected configureDynamicOverlay() {
+    return this.dynamicOverlayHandler
       .position(this.position)
-      .adjustment(this.adjustment);
-  }
-
-  protected createTriggerStrategy(): NbTriggerStrategy {
-    return new NbTriggerStrategyBuilder()
-      .document(this.document)
-      .trigger(NbTrigger.CLICK)
-      .host(this.hostRef.nativeElement)
-      .container(() => this.container)
-      .build();
-  }
-
-  protected subscribeOnPositionChange() {
-    this.positionStrategy.positionChange
-      .pipe(takeWhile(() => this.alive))
-      .subscribe((position: NbPosition) => patch(this.container, { position }));
-  }
-
-  protected subscribeOnTriggers() {
-    this.triggerStrategy.show$.pipe(takeWhile(() => this.alive)).subscribe(() => this.show());
-    this.triggerStrategy.hide$.pipe(takeWhile(() => this.alive)).subscribe(() => this.hide());
+      .trigger(this.trigger)
+      .adjustment(this.adjustment)
+      .context(this.overlayContext)
+      .overlayConfig(this.overlayConfig);
   }
 
   /*
@@ -216,9 +274,13 @@ export class NbContextMenuDirective implements AfterViewInit, OnDestroy {
   private subscribeOnItemClick() {
     this.menuService.onItemClick()
       .pipe(
-        takeWhile(() => this.alive),
         filter(({ tag }) => tag === this.tag),
+        takeUntil(this.destroy$),
       )
       .subscribe(() => this.hide());
+  }
+
+  protected updateOverlayContext() {
+    this.overlayContext = { items: this.items, position: this.position, tag: this.tag };
   }
 }

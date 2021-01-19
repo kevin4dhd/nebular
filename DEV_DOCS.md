@@ -1,3 +1,17 @@
+- [Before contributing](#things-you-must-follow-before-contributing)
+- [New Feature Checklist](#new-feature-checklist)
+- [New Package Checklist](#new-package-checklist)
+- [New Package Dependency Checklist](#new-package-dependency-checklist)
+- [Objectives](#objectives)
+- [Framework Structure](#framework-structure)
+- [Docs](#docs)
+- [Theme](#theme)
+- [Documentation](#documentation)
+- [Release](#release)
+- [create a new component guide](#create-a-new-component-guide)
+- [Playground](#playground)
+- [TODO](#todo)
+
 # Things you must follow before contributing
 - Don’t overcomplicate
 - Don’t make things too abstract
@@ -27,7 +41,9 @@
 - add the package into bump-version.ts which bumps package version and its dependencies
 - add the package external dependencies into rollup-config.ts which gives rollup capability build package correctly
 - add the package into bundle.ts which build umd modules for our packages
+- add the package into `JS_PACKAGES` in `scripts/gulp/tasks/config.ts` which used to add es2015 bundles for our packages
 - add the package into packages-smoke application dependencies to verify it works properly in isolation.
+- add the package into change-prefix.ts which builds our packages with custom prefix.
 
 # Objectives
 The aim of the project is to create a set of useful Angular modules which help to bootstrap the development.
@@ -52,7 +68,6 @@ We have to:
     - framework - Framework itself, divided into npm packages
         - theme - `@nebular/theme` npm package, main framework package
         - auth - `@nebular/auth` npm package, auth package (login, register, etc)       
-        - icons - `nebular-icons` npm package, cool icons font
         - security - `@nebular/security` npm package, security framework package
         
 
@@ -66,7 +81,29 @@ In the build mode documentation and runnable examples are built in TWO separate 
 and `docs/dist/run` for the examples. This is done so that we can reference an example in an iframe avoiding "same page iframe policy" which won't allow
 us to load the same page in the iframe on that page (and different pages starting only differentiated by `#something` are considered as one page in some
 browsers. 
-      
+
+## Docs deploy
+Each PR merge to the master branch triggers docs apps rebuild and deploy (deploy_docs mode in Travis).
+You can find the script at `scripts/docs/build-docs.ts`. There is also `scripts/docs/config.ts` with configuration options for repository settings.
+Script uses `docs/versions.json` file to determine versions to build.
+To add new version add an entry with following fields to the array:
+```json
+{
+  "checkoutTarget": "<commit | tag | branch>",
+  "name": "<version name>",
+  "path": "/path/to/the/version/directory/",
+  "isCurrent": "boolean | undefined"
+}
+```
+
+`checkoutTarget` passed directly to the `git checkout` command, so it could be anything `checkout` command supports.
+
+`name` will be shown in the versions select of the docs app.
+
+`path` used as a base href when building the docs app and as a redirect URL when selecting the version from version select.
+
+`isCurrent` version you see by default when navigating to the Nebular docs. Must be set for the single version only.
+
       
 ## Auth // TODO      
 
@@ -333,23 +370,45 @@ To give the user capability switch between live and inline representation of the
 
 To start a new release (publish the framework packages on NPM) you need:
 
+0. For major version release:
+    - search for `@breaking-change` to make sure all breaking changes are covered.
+    - create and push new LTS branch:
+        ```
+          git checkout master
+          git pull upstream master
+          git checkout -b <branch-name>
+          git push -u upstream <branch-name>
+        ```
+      `<branch-name>` should be named according to `<major>.<minor>.x` pattern. For example, if 4.6.3 becomes LTS, branch name should be `4.6.x`
+
+    - add LTS tag to packages version which becomes LTS.
+        ```
+          npm dist-tag add @nebular/theme@<version> <tag>
+        ```
+      Where `<version>` is version of package becoming LTS and `<tag>` is `v<major-version>-lts`. For example, when 4.6.3 becomes LTS, command would be: `npm dist-tag add @nebular/theme@4.6.3 v4-lts`
 1. create a new release branch called `release:v1.0.2`
-2. `npm run release:prepare` - this will create ready for publishing packages in src/.lib
-3. `npm run release:validate` - this will build prod & AOT builds of the playground app using prepared packages in src/.lib and run e2e tests again it.
-4. MANUALLY update a version in main ./package.json to a new one
-5. 
+2. `npm run release:validate` - this will create ready for publishing packages in src/.lib then build prod & AOT builds of the playground app using prepared packages and then run e2e tests again it.
+3. MANUALLY update a version in main ./package.json to a new one
+4. 
   * `npm run version:bump`
-  * update `package-lock.json`
-  * update dependent modules with correct peer module versions 
-6. 
+  * update version in `package-lock.json` and `packages-smoke/package-lock.json`
+  * when releasing current version (PR to master) also update [docs/versions.json](#docs-deploy):
+    - Update current version to version above to release
+    - For major update:
+      - Update LTS version entry to version became LTS
+5. 
   * `npm run version:changelog`
   * fix/expand changelog manually
-7. push the branch, create PR, approve - merge
-8. pull the upstream (master)   
-9. `npm run release` - run prepare & validate and finally publish the packages to NPM
-10. create and push git tag
-11. create release on github
-12. publish docs  
+6. push the branch, create PR, approve - merge
+7. pull the upstream (master or other version branch (e.g. 3.6.x))
+8. Create and push version git tag (`v<version>`, e.g. `v4.1.2`). When PR was made to the master branch, you need to create it right off, before the docs build script on CI clone the repo.
+9. If publishing LTS release add `--tag=v<major-version>-lts` (for example `v3-lts`) to publish command in `scripts/publish.sh:7`
+10. In case of beta, rc or any other unstable release add `--tag=next` to publish command in `scripts/publish.sh:7`
+11. `npm run release` - run prepare & validate and finally publish the packages to NPM
+12. create release on github
+13. add release notes to [Nebular Releases](https://github.com/akveo/nebular/issues/1204)
+14. For LTS release:
+    - create PR to master to update LTS entry in [docs/versions.json](#docs-deploy) to deploy LTS docs.
 
 #ngx-admin development on the latest Nebular sources
 
@@ -384,7 +443,7 @@ _your-component.component.theme.scss (optional, styles that depends on theme var
 
 - register your component in framework
 ````
-src/framework/theme/index.ts (add exports of your component and module)
+src/framework/theme/public_api.ts (add exports of your component and module)
 src/framework/theme/styles/global/_components.scss (if you create _your-component.component.theme.scss you have to register mixin) 
 
 ````
@@ -399,20 +458,42 @@ e2e/your-component.e2e-spec.ts if you need to test complex actions such as user 
 ````
 add it to docs/structure.ts
 
-src/playground/your-component/your-component-showcase.component.ts (create example usage of your component)
-src/playground/your-component/your-component-showcase.component.html (most probably looks like <nb-your-component></nb-your-component>)
+create example usage of your component
+src/playground/[with-layout|without-layout]/your-component/your-component-showcase.component.ts
 
-src/playground/playground.module.ts (register your component in module)
-src/playground/playground-routing.module.ts (routing)
+run 'npm run gen:playground' to generate boilerplate code, such as modules, routes, etc.
 
 your-component.component.ts  (add line in docs section-  * @stacked-example(Your component, your-component/your-component-showcase.component)
 ````
 - after `npm run docs:serve` you can see your component at `http://localhost:4100/#/docs/components/your-component` 
 
+# Playground
+
+Playground is a set of modules containing all Nebular examples.
+
+## Structure
+It has two base directories: `with-layout` and `without-layout`. All components in `with-layout` directory will be nested inside of `nb-layout` component. Components from `without-layout` directory will be direct children of router outlet. Put components into `without-layout` directory, if they don't need to or can't be children of layout component, such as a layout itself.
+
+## Playground schematic
+Playground schematic generates all boilerplate code for you. Basically, after adding a new component, directive or service declaration, all needed modules and components routes will be generated or modified.
+
+You can run it via 'npm run gen:playground' command.
+
+### How it works
+
+Schematic goes through all playground directories deeply.
+For direct children of [base](#structure) playground directories, it generates feature and routing modules.
+
+Each component, directive or service declaration found, will be declared in the closest module.
+Also for each component which has a routing module in directory schematic adds a route. Route path set to file name without extension.
+If a component is just a helper and shouldn't has it's own route, you can put in a subdirectory (typically './components').
+
+Each module found will be added as a lazy route for closest parent module. Route path will be set to a module directory name.
+
+Then schematic will collect all component routes and write list into `./src/app/playground-components.ts` (used by docs app).
 
 # TODO
  - steps to start the development
  - describe framework and demo dependencies
  - create a new component guide
  - usage guide
- - move nebular-icons in separate repository

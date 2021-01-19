@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "baseUrl": "tsconfig",
+    "baseUrl": ".",
     "lib": [
       "es2017",
       "dom"
@@ -15,7 +15,10 @@
     "noImplicitThis": true,
     "noUnusedParameters": true,
     "noUnusedLocals": true,
-    "rootDir": "./",
+    "rootDir": ".",
+    "rootDirs": [
+      "../src/framework/theme/schematics/util"
+    ],
     "skipDefaultLibCheck": true,
     "skipLibCheck": true,
     "sourceMap": true,
@@ -30,7 +33,7 @@
     "./**/*"
   ],
   "exclude": [
-    "./*/files/**/*",
+    "./**/files/**/*",
     "dist"
   ]
 }

@@ -35,11 +35,11 @@ export class NgdHomeComponent {
       link: 'docs/components/components-overview',
     },
     {
-      title: 'Theme System',
-      description: `Three built-in themes & hundreds of variables to create your own.
+      title: 'Design System',
+      description: `Based on Eva Design System, with 4 visual themes & handy variables to create your own.
                     With hot-reload out of the box`,
       icon: 'assets/img/themes.svg',
-      link: 'docs/guides/theme-system',
+      link: 'docs/design-system/eva-design-system-intro',
     },
     {
       title: 'Auth',
@@ -59,18 +59,22 @@ export class NgdHomeComponent {
     {
       title: 'Modular',
       description: `Each feature is a separate npm module. Use only what you need.`,
+      icon: 'assets/img/modular.svg',
     },
     {
-      title: 'Native',
-      description: `Components are written in pure Angular with no 3rd-party dependencies.`,
+      title: 'Configurable',
+      description: `Sizes, colors, appearances, shapes, and other useful settings.`,
+      icon: 'assets/img/native.svg',
     },
     {
       title: 'Open',
-      description: `Modules source code is free and available under MIT licence.`,
+      description: `Source code is free and available under MIT licence.`,
+      icon: 'assets/img/open-sourced.svg',
     },
     {
-      title: 'Extendable',
-      description: `Can be used in a mix with any UI library.`,
+      title: 'Customizable',
+      description: `Straightforward way to integrate your brand`,
+      icon: 'assets/img/extendable.svg',
     },
   ];
 

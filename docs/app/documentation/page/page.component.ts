@@ -4,38 +4,34 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import { Component, Inject, NgZone, OnDestroy, OnInit } from '@angular/core';
+import { Component, Inject, NgZone, OnDestroy, OnInit, ViewChild, AfterContentChecked } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import {Title} from '@angular/platform-browser';
-import {
-  filter,
-  map,
-  publishBehavior,
-  publishReplay,
-  refCount,
-  tap,
-  takeWhile,
-} from 'rxjs/operators';
+import { filter, map, publishReplay, refCount, tap, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 import { NB_WINDOW } from '@nebular/theme';
-import { NgdStructureService, NgdTocStateService } from '../../@theme/services';
-import { fromEvent } from 'rxjs';
+import { NgdTabbedBlockComponent } from '../../blocks/components/tabbed-block/tabbed-block.component';
+import { NgdStructureService } from '../../@theme/services';
 
 @Component({
   selector: 'ngd-page',
   templateUrl: './page.component.html',
   styleUrls: ['./page.component.scss'],
 })
-export class NgdPageComponent implements OnDestroy, OnInit {
+export class NgdPageComponent implements OnInit, AfterContentChecked, OnDestroy {
 
   currentItem;
-  private alive = true;
+  private destroy$ = new Subject<void>();
+
+  currentTabName: string = '';
+
+  @ViewChild(NgdTabbedBlockComponent) tabbedBlock: NgdTabbedBlockComponent;
 
   constructor(@Inject(NB_WINDOW) private window,
               private ngZone: NgZone,
               private router: Router,
               private activatedRoute: ActivatedRoute,
               private structureService: NgdStructureService,
-              private tocState: NgdTocStateService,
               private titleService: Title) {
   }
 
@@ -46,14 +42,24 @@ export class NgdPageComponent implements OnDestroy, OnInit {
 
   ngOnInit() {
     this.handlePageNavigation();
-    this.handleTocScroll();
     this.window.history.scrollRestoration = 'manual';
+  }
+
+  ngAfterContentChecked() {
+    const currentTabName = this.getCurrentTabName();
+    if (this.currentTabName !== currentTabName) {
+      Promise.resolve().then(() => this.currentTabName = currentTabName);
+    }
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   handlePageNavigation() {
     this.activatedRoute.params
       .pipe(
-        takeWhile(() => this.alive),
         filter((params: any) => params.subPage),
         map((params: any) => {
           const slag = `${params.page}_${params.subPage}`;
@@ -61,41 +67,27 @@ export class NgdPageComponent implements OnDestroy, OnInit {
         }),
         filter(item => item),
         tap((item: any) => {
-          this.titleService.setTitle(`Nebular - ${item.name}`);
+          let title = `Nebular - ${item.name}`;
+
+          if (item.type === 'tabs') {
+            title += ' Angular UI Component';
+          }
+          this.titleService.setTitle(title);
         }),
         publishReplay(),
         refCount(),
+        takeUntil(this.destroy$),
       )
       .subscribe((item) => {
         this.currentItem = item;
       });
   }
 
-  handleTocScroll() {
-    this.ngZone.runOutsideAngular(() => {
-      fromEvent(this.window, 'scroll')
-        .pipe(
-          publishBehavior(null),
-          refCount(),
-          takeWhile(() => this.alive),
-          filter(() => this.tocState.list().length > 0),
-        )
-        .subscribe(() => {
-          this.tocState.list().map(item => item.setInView(false));
+  protected getCurrentTabName(): string {
+    if (this.tabbedBlock && this.tabbedBlock.currentTab) {
+      return this.tabbedBlock.currentTab.tab;
+    }
 
-          const current: any = this.tocState.list().reduce((acc, item) => {
-            return item.y > 0 && item.y < acc.y ? item : acc;
-          }, { y: Number.POSITIVE_INFINITY, fake: true });
-
-          if (current && !current.fake) {
-            current.setInView(true);
-            this.router.navigate([], { fragment: current.fragment, replaceUrl: true });
-          }
-        });
-    });
-  }
-
-  ngOnDestroy() {
-    this.alive = false;
+    return '';
   }
 }

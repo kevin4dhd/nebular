@@ -1,6 +1,9 @@
-import { ChangeDetectionStrategy, Component, HostBinding, Input } from '@angular/core';
-import { NbMenuItem, NbSidebarService } from '@nebular/theme';
-import { NgdVersionService } from '../../services';
+import { ChangeDetectionStrategy, Component, HostBinding, Inject, Input, OnInit } from '@angular/core';
+import { NB_WINDOW, NbMenuItem, NbSidebarService } from '@nebular/theme';
+import { Observable } from 'rxjs';
+import { map, startWith } from 'rxjs/operators';
+
+import { NgdVersionService, Version } from '../../services';
 
 @Component({
   selector: 'ngd-header',
@@ -8,16 +11,26 @@ import { NgdVersionService } from '../../services';
   template: `
     <div class="section left">
       <button *ngIf="sidebarTag" class="sidebar-toggle" (click)="toggleSidebar()">
-        <i class="nb-menu"></i>
+        <nb-icon icon="menu-2"></nb-icon>
       </button>
       <div class="logo">
         <a routerLink="/">Nebular</a>
-        <span class="version">v{{ currentVersion }}</span>
+        <span class="version" *ngIf="currentVersionName$ | async">
+          v{{ currentVersionName$ | async }}
+        </span>
       </div>
     </div>
     <div class="section middle">
       <nb-menu [items]="mainMenu"></nb-menu>
       <ngd-search *ngIf="showSearch"></ngd-search>
+      <nb-select class="version-select"
+                 *ngIf="(showVersionSelect$ | async)"
+                 [selected]="currentVersion$ | async"
+                 (selectedChange)="redirectToVersion($event)">
+        <nb-option *ngFor="let version of supportedVersions$ | async" [value]="version">
+          {{ version.name }}
+        </nb-option>
+      </nb-select>
     </div>
     <div class="section right">
       <iframe class="stars"
@@ -29,19 +42,16 @@ import { NgdVersionService } from '../../services';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class NgdHeaderComponent {
+export class NgdHeaderComponent implements OnInit {
 
   @Input() showSearch = true;
   @HostBinding('class.docs-page') @Input() isDocs = false;
 
-  currentVersion: string;
-
-  constructor(
-    versionService: NgdVersionService,
-    private sidebarService: NbSidebarService,
-  ) {
-    this.currentVersion = versionService.getNebularVersion();
-  }
+  private window: Window;
+  supportedVersions$: Observable<Version[]>;
+  currentVersion$: Observable<Version>;
+  currentVersionName$: Observable<string>;
+  showVersionSelect$: Observable<boolean>;
 
   mainMenu: NbMenuItem[] = [
     {
@@ -53,8 +63,8 @@ export class NgdHeaderComponent {
       link: '/docs/components/components-overview',
     },
     {
-      title: 'Theme System',
-      link: '/docs/guides/theme-system',
+      title: 'Design System',
+      link: '/docs/design-system/eva-design-system-intro',
     },
     {
       title: 'Auth',
@@ -68,7 +78,38 @@ export class NgdHeaderComponent {
 
   @Input() sidebarTag: string;
 
+  constructor(
+    @Inject(NB_WINDOW) window,
+    private versionService: NgdVersionService,
+    private sidebarService: NbSidebarService,
+  ) {
+    this.window = window;
+  }
+
+  ngOnInit() {
+    this.currentVersion$ = this.versionService.getCurrentVersion();
+    this.currentVersionName$ = this.currentVersion$.pipe(map((version: Version) => version.name));
+    this.supportedVersions$ = this.versionService.getSupportedVersions();
+
+    this.showVersionSelect$ = this.supportedVersions$
+      .pipe(
+        map((versions: Version[]) => versions.length > 0),
+        startWith(false),
+      );
+
+    if (!this.isDocs) {
+      this.mainMenu.push({
+        title: 'Professional Services',
+        link: '/docs/getting-started/professional-services',
+      });
+    }
+  }
+
   toggleSidebar() {
     this.sidebarService.toggle(false, this.sidebarTag);
+  }
+
+  redirectToVersion(version: Version): void {
+    this.window.location.href = version.path;
   }
 }

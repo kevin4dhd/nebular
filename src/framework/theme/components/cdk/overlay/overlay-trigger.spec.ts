@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { ComponentRef } from '@angular/core';
 
-import { NbTrigger, NbTriggerStrategyBuilder } from './overlay-trigger';
+import { NbTrigger, NbTriggerStrategyBuilderService } from './overlay-trigger';
 import { NB_DOCUMENT } from '../../../theme.options';
 import createSpy = jasmine.createSpy;
 
@@ -25,22 +25,27 @@ const tab = (el) => el.dispatchEvent(new KeyboardEvent('keydown', <any> {
 }));
 
 describe('click-trigger-strategy', () => {
-  let triggerStrategyBuilder: NbTriggerStrategyBuilder;
+  let triggerStrategyBuilder: NbTriggerStrategyBuilderService;
   let document: Document;
   let host: HTMLElement;
   let container: HTMLElement;
 
 
   beforeEach(() => {
-    const bed = TestBed.configureTestingModule({ providers: [{ provide: NB_DOCUMENT, useExisting: DOCUMENT }] });
-    document = bed.get(NB_DOCUMENT);
+    const bed = TestBed.configureTestingModule({
+      providers: [
+        NbTriggerStrategyBuilderService,
+        { provide: NB_DOCUMENT, useExisting: DOCUMENT },
+      ],
+    });
+    document = bed.inject(NB_DOCUMENT);
+    triggerStrategyBuilder = bed.inject(NbTriggerStrategyBuilderService);
   });
 
   beforeEach(() => {
     host = createElement();
     container = createElement();
-    triggerStrategyBuilder = new NbTriggerStrategyBuilder()
-      .document(document)
+    triggerStrategyBuilder
       .trigger(NbTrigger.CLICK)
       .host(host)
       .container(withContainer(container));
@@ -77,31 +82,58 @@ describe('click-trigger-strategy', () => {
 
     expect(spy).toHaveBeenCalledTimes(0);
   });
+
+  it('should not destroy when host reattached', () => {
+    const showSpy = jasmine.createSpy('show');
+    const triggerStrategy = triggerStrategyBuilder
+      .container(() => null)
+      .build();
+
+    triggerStrategy.show$.subscribe(showSpy);
+
+    click(host);
+
+    expect(showSpy).toHaveBeenCalledTimes(1);
+
+    document.body.removeChild(host);
+    document.body.appendChild(host);
+
+    click(host);
+
+    expect(showSpy).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('hover-trigger-strategy', () => {
-  let triggerStrategyBuilder: NbTriggerStrategyBuilder;
+  let triggerStrategyBuilder: NbTriggerStrategyBuilderService;
   let document: Document;
   let host: HTMLElement;
   let container: HTMLElement;
 
   beforeEach(() => {
-    const bed = TestBed.configureTestingModule({ providers: [{ provide: NB_DOCUMENT, useExisting: DOCUMENT }] });
-    document = bed.get(NB_DOCUMENT);
+    const bed = TestBed.configureTestingModule({
+      providers: [
+        NbTriggerStrategyBuilderService,
+        { provide: NB_DOCUMENT, useExisting: DOCUMENT },
+      ],
+    });
+    document = bed.inject(NB_DOCUMENT);
+    triggerStrategyBuilder = bed.inject(NbTriggerStrategyBuilderService);
   });
 
   beforeEach(() => {
     host = createElement();
     container = createElement();
-    triggerStrategyBuilder = new NbTriggerStrategyBuilder()
-      .document(document)
+    triggerStrategyBuilder
       .trigger(NbTrigger.HOVER)
       .host(host)
       .container(withContainer(container));
   });
 
   it('should fire show$ when hover on host', done => {
-    const triggerStrategy = triggerStrategyBuilder.build();
+    const triggerStrategy = triggerStrategyBuilder
+      .container(() => null)
+      .build();
     triggerStrategy.show$.subscribe(done);
     mouseEnter(host);
   });
@@ -125,24 +157,55 @@ describe('hover-trigger-strategy', () => {
 
     expect(spy).toHaveBeenCalledTimes(0);
   });
+
+  it('should not destroy when host reattached', fakeAsync(() => {
+    const showSpy = jasmine.createSpy('show');
+    const triggerStrategy = triggerStrategyBuilder
+      .container(() => null)
+      .build();
+
+    triggerStrategy.show$.subscribe(showSpy);
+
+    mouseEnter(host);
+
+    // hover trigger strategy has 100 milliseconds delay before firing show$
+    tick(100);
+
+    expect(showSpy).toHaveBeenCalledTimes(1);
+
+    document.body.removeChild(host);
+    document.body.appendChild(host);
+
+    mouseEnter(host);
+
+    // hover trigger strategy has 100 milliseconds delay before firing show$
+    tick(100);
+
+    expect(showSpy).toHaveBeenCalledTimes(2);
+  }));
 });
 
 describe('hint-trigger-strategy', () => {
-  let triggerStrategyBuilder: NbTriggerStrategyBuilder;
+  let triggerStrategyBuilder: NbTriggerStrategyBuilderService;
   let document: Document;
   let host: HTMLElement;
   let container: HTMLElement;
 
   beforeEach(() => {
-    const bed = TestBed.configureTestingModule({ providers: [{ provide: NB_DOCUMENT, useExisting: DOCUMENT }] });
-    document = bed.get(NB_DOCUMENT);
+    const bed = TestBed.configureTestingModule({
+      providers: [
+        NbTriggerStrategyBuilderService,
+        { provide: NB_DOCUMENT, useExisting: DOCUMENT },
+      ],
+    });
+    document = bed.inject(NB_DOCUMENT);
+    triggerStrategyBuilder = bed.inject(NbTriggerStrategyBuilderService);
   });
 
   beforeEach(() => {
     host = createElement();
     container = createElement();
-    triggerStrategyBuilder = new NbTriggerStrategyBuilder()
-      .document(document)
+    triggerStrategyBuilder
       .trigger(NbTrigger.HINT)
       .host(host)
       .container(withContainer(container));
@@ -159,24 +222,54 @@ describe('hint-trigger-strategy', () => {
     triggerStrategy.hide$.subscribe(done);
     mouseLeave(host);
   });
+
+  it('should not destroy when host reattached', fakeAsync(() => {
+    const showSpy = jasmine.createSpy('show');
+    const triggerStrategy = triggerStrategyBuilder
+      .build();
+
+    triggerStrategy.show$.subscribe(showSpy);
+
+    mouseEnter(host);
+
+    // hint trigger strategy has 100 milliseconds delay before firing show$
+    tick(100);
+
+    expect(showSpy).toHaveBeenCalledTimes(1);
+
+    document.body.removeChild(host);
+    document.body.appendChild(host);
+
+    mouseEnter(host);
+
+    // hint trigger strategy has 100 milliseconds delay before firing show$
+    tick(100);
+
+    expect(showSpy).toHaveBeenCalledTimes(2);
+  }));
 });
 
 describe('focus-trigger-strategy', () => {
-  let triggerStrategyBuilder: NbTriggerStrategyBuilder;
+  let triggerStrategyBuilder: NbTriggerStrategyBuilderService;
   let document: Document;
   let host: HTMLElement;
   let container: HTMLElement;
 
   beforeEach(() => {
-    const bed = TestBed.configureTestingModule({ providers: [{ provide: NB_DOCUMENT, useExisting: DOCUMENT }] });
-    document = bed.get(NB_DOCUMENT);
+    const bed = TestBed.configureTestingModule({
+      providers: [
+        NbTriggerStrategyBuilderService,
+        { provide: NB_DOCUMENT, useExisting: DOCUMENT },
+      ],
+    });
+    document = bed.inject(NB_DOCUMENT);
+    triggerStrategyBuilder = bed.inject(NbTriggerStrategyBuilderService);
   });
 
   beforeEach(() => {
     host = createElement();
     container = createElement();
-    triggerStrategyBuilder = new NbTriggerStrategyBuilder()
-      .document(document)
+    triggerStrategyBuilder
       .trigger(NbTrigger.FOCUS)
       .host(host)
       .container(withContainer(container));
@@ -228,5 +321,86 @@ describe('focus-trigger-strategy', () => {
     tick(100);
 
     expect(showSpy).toHaveBeenCalledTimes(1);
+  }));
+
+  it('should not destroy when host reattached', fakeAsync(() => {
+    const showSpy = jasmine.createSpy('show');
+    const triggerStrategy = triggerStrategyBuilder
+      .container(() => null)
+      .build();
+
+    triggerStrategy.show$.subscribe(showSpy);
+
+    focus(host);
+
+    // focus trigger strategy has 100 milliseconds delay before firing show$
+    tick(100);
+
+    expect(showSpy).toHaveBeenCalledTimes(1);
+
+    document.body.removeChild(host);
+    document.body.appendChild(host);
+
+    focus(host);
+
+    // focus trigger strategy has 100 milliseconds delay before firing show$
+    tick(100);
+
+    expect(showSpy).toHaveBeenCalledTimes(2);
+  }));
+});
+
+describe('noop-trigger-strategy', () => {
+  let triggerStrategyBuilder: NbTriggerStrategyBuilderService;
+  let document: Document;
+  let host: HTMLElement;
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    const bed = TestBed.configureTestingModule({
+      providers: [
+        NbTriggerStrategyBuilderService,
+        { provide: NB_DOCUMENT, useExisting: DOCUMENT },
+      ],
+    });
+    document = bed.inject(NB_DOCUMENT);
+    triggerStrategyBuilder = bed.inject(NbTriggerStrategyBuilderService);
+  });
+
+  beforeEach(() => {
+    host = createElement();
+    container = createElement();
+    triggerStrategyBuilder
+      .trigger(NbTrigger.NOOP)
+      .host(host)
+      .container(withContainer(container));
+  });
+
+  it('should NOT fire show$ when hover/click/focus on host', fakeAsync(() => {
+    const showSpy = createSpy('showSpy');
+    const triggerStrategy = triggerStrategyBuilder
+      .container(() => null)
+      .build();
+    triggerStrategy.show$.subscribe(showSpy);
+
+    focus(host);
+    click(host);
+    mouseEnter(host);
+    tick(100);
+
+    expect(showSpy).toHaveBeenCalledTimes(0);
+  }));
+
+  it('should NOT fire hide$ when hover out from host', fakeAsync(() => {
+    const showSpy = createSpy('showSpy');
+    const triggerStrategy = triggerStrategyBuilder.build();
+
+    triggerStrategy.hide$.subscribe(showSpy);
+    mouseLeave(host);
+    blur(host);
+    focus(document);
+    tick(100);
+
+    expect(showSpy).toHaveBeenCalledTimes(0);
   }));
 });

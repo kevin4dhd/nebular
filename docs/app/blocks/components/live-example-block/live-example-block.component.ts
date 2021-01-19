@@ -13,7 +13,8 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { Location } from '@angular/common';
-import { takeWhile } from 'rxjs/operators';
+import { takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 import { NgdAnalytics, NgdIframeCommunicatorService } from '../../../@theme/services';
 import { NgdExampleView } from '../../enum.example-view';
 
@@ -45,11 +46,18 @@ export class NgdLiveExampleBlockComponent implements OnInit, AfterViewInit, OnDe
     return this.currentTheme === 'corporate';
   }
 
+  @HostBinding('class.theme-dark')
+  private get isDark() {
+    return this.currentTheme === 'dark';
+  }
+
   iframeHeight = 0;
-  alive: boolean = true;
+
+  private destroy$ = new Subject<void>();
 
   themes: {label: string; value: string}[] = [
     { label: 'Default', value: 'default' },
+    { label: 'Dark', value: 'dark' },
     { label: 'Cosmic', value: 'cosmic' },
     { label: 'Corporate', value: 'corporate' },
   ];
@@ -73,7 +81,7 @@ export class NgdLiveExampleBlockComponent implements OnInit, AfterViewInit, OnDe
 
   ngOnInit() {
     this.communicator.receive(this.content.id)
-      .pipe(takeWhile(() => this.alive))
+      .pipe(takeUntil(this.destroy$))
       .subscribe(it => {
         this.iframeHeight = it.height;
         this.loading = false;
@@ -91,11 +99,12 @@ export class NgdLiveExampleBlockComponent implements OnInit, AfterViewInit, OnDe
   }
 
   ngOnDestroy() {
-    this.alive = false;
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   switchTheme(theme: string) {
-    this.analytics.trackEvent('change-theme', theme);
+    this.analytics.trackEvent('changeTheme', theme);
     this.communicator.send({ id: this.content.id, theme }, this.iframeWindow);
   }
 

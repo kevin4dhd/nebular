@@ -4,13 +4,10 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
+@import '../../../../styles/core/mixins';
+
 :host {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-
-  i {
-    font-size: 1.5rem;
-    cursor: pointer;
-  }
+  justify-content: flex-start;
 }

@@ -7,32 +7,39 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 
+export interface NbChatMessageFileIconPreview {
+  url: string;
+  icon: string;
+}
+export interface NbChatMessageFileImagePreview {
+  url: string;
+  type: string;
+}
+export type NbChatMessageFile = NbChatMessageFileIconPreview | NbChatMessageFileImagePreview;
+
 /**
  * Chat message component.
- *
- * @styles
- *
  */
 @Component({
   selector: 'nb-chat-message-file',
   template: `
-    <nb-chat-message-text [sender]="sender" [date]="date" [message]="message">
+    <nb-chat-message-text [sender]="sender" [date]="date" [dateFormat]="dateFormat" [message]="message">
       {{ message }}
     </nb-chat-message-text>
 
     <ng-container *ngIf="readyFiles?.length > 1">
       <div class="message-content-group">
         <a *ngFor="let file of readyFiles" [href]="file.url" target="_blank">
-          <span [class]="file.icon" *ngIf="!file.urlStyle"></span>
-          <div *ngIf="file.isImage" [style.background-image]="file.urlStyle"></div>
+          <nb-icon [icon]="file.icon" *ngIf="!file.urlStyle && file.icon"></nb-icon>
+          <div *ngIf="file.urlStyle" [style.background-image]="file.urlStyle"></div>
         </a>
       </div>
     </ng-container>
 
     <ng-container *ngIf="readyFiles?.length === 1">
       <a [href]="readyFiles[0].url" target="_blank">
-        <span [class]="readyFiles[0].icon"  *ngIf="!readyFiles[0].urlStyle"></span>
-        <div *ngIf="readyFiles[0].isImage" [style.background-image]="readyFiles[0].urlStyle"></div>
+        <nb-icon [icon]="readyFiles[0].icon" *ngIf="!readyFiles[0].urlStyle && readyFiles[0].icon"></nb-icon>
+        <div *ngIf="readyFiles[0].urlStyle" [style.background-image]="readyFiles[0].urlStyle"></div>
       </a>
     </ng-container>
   `,
@@ -61,11 +68,17 @@ export class NbChatMessageFileComponent {
   @Input() date: Date;
 
   /**
+   * Message send date format, default 'shortTime'
+   * @type {string}
+   */
+  @Input() dateFormat: string = 'shortTime';
+
+  /**
    * Message file path
    * @type {Date}
    */
   @Input()
-  set files(files: any[]) {
+  set files(files: NbChatMessageFile[]) {
     this.readyFiles = (files || []).map((file: any) => {
       const isImage = this.isImage(file);
       return {
@@ -77,11 +90,15 @@ export class NbChatMessageFileComponent {
     this.cd.detectChanges();
   }
 
-  constructor(private cd: ChangeDetectorRef, private domSanitizer: DomSanitizer) {
+  constructor(protected cd: ChangeDetectorRef, protected domSanitizer: DomSanitizer) {
   }
 
 
-  isImage(file: any): boolean {
-    return ['image/png', 'image/jpeg', 'image/gif'].includes(file.type);
+  isImage(file: NbChatMessageFile): boolean {
+    const type = (file as NbChatMessageFileImagePreview).type;
+    if (type) {
+      return [ 'image/png', 'image/jpeg', 'image/gif' ].includes(type);
+    }
+    return false;
   }
 }

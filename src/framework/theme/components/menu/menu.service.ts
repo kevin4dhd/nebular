@@ -6,10 +6,12 @@
 
 import { Injectable } from '@angular/core';
 import { Location } from '@angular/common';
-import { Params } from '@angular/router';
+import { Params, QueryParamsHandling } from '@angular/router';
 import { Observable, BehaviorSubject, ReplaySubject, Subject } from 'rxjs';
 import { share } from 'rxjs/operators';
-import { isUrlPathContain, isUrlPathEqual } from './url-matching-helpers';
+import { isFragmentContain, isFragmentEqual, isUrlPathContain, isUrlPathEqual } from './url-matching-helpers';
+import { NbIconConfig } from '../icon/icon.component';
+import { NbBadge } from '../badge/badge.component';
 
 export interface NbMenuBag { tag: string; item: NbMenuItem }
 
@@ -23,9 +25,16 @@ const itemHover$ = new ReplaySubject<NbMenuBag>(1);
 const submenuToggle$ = new ReplaySubject<NbMenuBag>(1);
 const collapseAll$ = new ReplaySubject<{ tag: string }>(1);
 
+export type NbMenuBadgeConfig = Omit<NbBadge, 'position'>;
+
 // TODO: check if we need both URL and LINK
 /**
- * Menu Item options
+ *
+ *
+ * Menu Item options example
+ * @stacked-example(Menu Link Parameters, menu/menu-link-params.component)
+ *
+ *
  */
 export class NbMenuItem {
   /**
@@ -44,15 +53,20 @@ export class NbMenuItem {
    */
   url?: string;
   /**
-   * Icon class name
-   * @type {string}
+   * Icon class name or icon config object
+   * @type {string | NbIconConfig}
    */
-  icon?: string;
+  icon?: string | NbIconConfig;
   /**
-   * Expanded by defaul
+   * Expanded by default
    * @type {boolean}
    */
   expanded?: boolean;
+  /**
+   * Badge component
+   * @type {boolean}
+   */
+  badge?: NbMenuBadgeConfig;
   /**
    * Children items
    * @type {List<NbMenuItem>}
@@ -72,7 +86,7 @@ export class NbMenuItem {
    * Item is selected when partly or fully equal to the current url
    * @type {string}
    */
-  pathMatch?: string = 'full';
+  pathMatch?: 'full' | 'prefix' = 'full';
   /**
    * Where this is a home item
    * @type {boolean}
@@ -83,14 +97,20 @@ export class NbMenuItem {
    * @type {boolean}
    */
   group?: boolean;
+  /** Whether the item skipLocationChange is true or false
+   *@type {boolean}
+   */
+  skipLocationChange?: boolean;
   /** Map of query parameters
    *@type {Params}
    */
   queryParams?: Params;
+  queryParamsHandling?: QueryParamsHandling;
   parent?: NbMenuItem;
   selected?: boolean;
   data?: any;
   fragment?: string;
+  preserveFragment?: boolean;
 
   /**
    * @returns item parents in top-down order
@@ -117,7 +137,12 @@ export class NbMenuItem {
 // TODO: map select events to router change events
 // TODO: review the interface
 /**
+ *
+ *
  * Menu Service. Allows you to listen to menu events, or to interact with a menu.
+ * @stacked-example(Menu Service, menu/menu-service.component)
+ *
+ *
  */
 @Injectable()
 export class NbMenuService {
@@ -362,8 +387,18 @@ export class NbMenuInternalService {
 
   private isSelectedInUrl(item: NbMenuItem): boolean {
     const exact: boolean = item.pathMatch === 'full';
-    return exact
-      ? isUrlPathEqual(this.location.path(), item.link)
-      : isUrlPathContain(this.location.path(), item.link);
+    const link: string = item.link;
+
+    const isSelectedInPath = exact
+      ? isUrlPathEqual(this.location.path(), link)
+      : isUrlPathContain(this.location.path(), link);
+
+    if (isSelectedInPath && item.fragment != null) {
+      return exact
+        ? isFragmentEqual(this.location.path(true), item.fragment)
+        : isFragmentContain(this.location.path(true), item.fragment);
+    }
+
+    return isSelectedInPath;
   }
 }

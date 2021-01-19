@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import { browser, element, by } from 'protractor';
+import { browser, element, by, Key } from 'protractor';
 
 import { hasClass } from './e2e-helper';
 
@@ -43,61 +43,24 @@ describe('accordion', () => {
     ).toBeTruthy('second is expanded');
   });
 
-  it('should expand a first accordion-item', () => {
-    element(by.css('nb-accordion > nb-accordion-item:nth-child(1)')).click();
+  describe('a11y', () => {
 
-    expect(
-      hasClass(element(by.css('nb-accordion > nb-accordion-item:nth-child(1)')), 'expanded'),
-    ).toBeTruthy();
+    it('should be interactable through keyboard', () => {
+      expect(
+        hasClass(
+          element(by.css('nb-accordion > nb-accordion-item:nth-child(3)')) , 'expanded',
+        ),
+      ).toBeTruthy();
 
-    expect(
-      hasClass(element(by.css('nb-accordion > nb-accordion-item:nth-child(3)')), 'collapsed'),
-    ).toBeTruthy();
-
-    expect(
-      element(by.css('nb-accordion > nb-accordion-item:nth-child(1) > nb-accordion-item-header')).getAttribute(
-        'aria-expanded',
-      ),
-    ).toEqual('true');
-  });
-
-  it('should display the tabbable accordion items', () => {
-    expect(
-      element(by.css('nb-accordion > nb-accordion-item:nth-child(1) > nb-accordion-item-header')).getAttribute(
-        'tabindex',
-      ),
-    ).toEqual('0');
-
-    expect(
-      element(by.css('nb-accordion > nb-accordion-item:nth-child(2) > nb-accordion-item-header')).getAttribute(
-        'tabindex',
-      ),
-    ).toEqual('0');
-
-    expect(
-      element(by.css('nb-accordion > nb-accordion-item:nth-child(4) > nb-accordion-item-header')).getAttribute(
-        'tabindex',
-      ),
-    ).toEqual('-1');
-  });
-
-  it('should display a disabled accordion item', () => {
-    expect(
-      element(by.css('nb-accordion > nb-accordion-item:nth-child(4) > nb-accordion-item-header')).getAttribute(
-        'aria-disabled',
-      ),
-    ).toEqual('true');
-
-    expect(
-      hasClass(element(by.css('nb-accordion > nb-accordion-item:nth-child(4)')), 'disabled'),
-    ).toBeTruthy();
-  });
-
-  it('should display a disabled accordion with collapsed state after click', () => {
-    element(by.css('nb-accordion > nb-accordion-item:nth-child(4)')).click();
-
-    expect(
-      hasClass(element(by.css('nb-accordion > nb-accordion-item:nth-child(4)')), 'collapsed'),
-    ).toBeTruthy();
-  });
+      return element(by.css('nb-accordion > nb-accordion-item:nth-child(3) > nb-accordion-item-header'))
+        .sendKeys(Key.ENTER)
+        .then(() => {
+            expect(
+              hasClass(
+                element(by.css('nb-accordion > nb-accordion-item:nth-child(3)')), 'collapsed',
+              ),
+            ).toBeTruthy('nb-accordion-item is collapsed');
+        })
+    })
+  })
 });

@@ -9,14 +9,12 @@ import { NbChatOptions } from './chat.options';
 
 /**
  * Chat message component.
- *
- * @styles
- *
  */
 @Component({
   selector: 'nb-chat-message-map',
   template: `
-    <nb-chat-message-file [files]="[file]" [message]="message" [sender]="sender" [date]="date"></nb-chat-message-file>
+    <nb-chat-message-file [files]="[file]" [message]="message" [sender]="sender" [date]="date"
+     [dateFormat]="dateFormat"></nb-chat-message-file>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -41,6 +39,12 @@ export class NbChatMessageMapComponent {
   @Input() date: Date;
 
   /**
+   * Message send date format, default 'shortTime'
+   * @type {string}
+   */
+  @Input() dateFormat: string = 'shortTime';
+
+  /**
    * Map latitude
    * @type {number}
    */
@@ -54,10 +58,10 @@ export class NbChatMessageMapComponent {
 
   get file() {
     return {
-      // tslint:disable-next-line
+      // tslint:disable-next-line:max-line-length
       url: `https://maps.googleapis.com/maps/api/staticmap?center=${this.latitude},${this.longitude}&zoom=12&size=400x400&key=${this.mapKey}`,
       type: 'image/png',
-      icon: 'nb-location',
+      icon: 'location',
     };
   }
 

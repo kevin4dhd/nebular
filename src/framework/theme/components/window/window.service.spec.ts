@@ -1,11 +1,14 @@
-import { Component, ElementRef, NgModule } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import { NB_DOCUMENT } from '../../theme.options';
-import { NbThemeModule } from '../../theme.module';
-import { NbOverlayContainerAdapter, NbViewportRulerAdapter } from '../cdk';
-import { NbWindowModule } from './window.module';
-import { NbWindowService } from './window.service';
 import createSpy = jasmine.createSpy;
+import { Component, ElementRef, NgModule, ViewChild, TemplateRef } from '@angular/core';
+import { TestBed, fakeAsync, flush } from '@angular/core/testing';
+import {
+  NbWindowService,
+  NbWindowModule,
+  NbViewportRulerAdapter,
+  NbOverlayContainerAdapter,
+  NB_DOCUMENT,
+  NbThemeModule,
+} from '@nebular/theme';
 
 const WINDOW_CONTENT = 'window content';
 @Component({
@@ -14,9 +17,36 @@ const WINDOW_CONTENT = 'window content';
 })
 class NbTestWindowComponent {}
 
+@Component({
+  selector: 'nb-test-window-with-template',
+  template: `
+    <ng-template #contentTemplate let-data>
+      <p>Static text: {{ data.text }}</p>
+    </ng-template>
+  `,
+})
+class NbTestWindowWithTemplateComponent {
+  @ViewChild('contentTemplate') contentTemplate: TemplateRef<any>;
+
+  constructor(private ws: NbWindowService) {}
+
+  openWindow() {
+    return this.ws.open(
+      this.contentTemplate,
+      { title: 'Window content from template', context: { text: 'hello world' } },
+    );
+  }
+}
+
+@Component({
+  selector: 'nb-test-window-with-component',
+  template: `<p id="window-content">window content {{ componentInput }}<p>`,
+})
+export class TestWindowComponent {}
+
 @NgModule({
-  declarations: [NbTestWindowComponent],
-  entryComponents: [NbTestWindowComponent],
+  declarations: [NbTestWindowComponent, NbTestWindowWithTemplateComponent, TestWindowComponent],
+  entryComponents: [NbTestWindowComponent, NbTestWindowWithTemplateComponent, TestWindowComponent],
 })
 class NbTestWindowModule {}
 
@@ -49,9 +79,9 @@ describe('window-service', () => {
         { provide: NbViewportRulerAdapter, useClass: NbViewportRulerAdapterMock },
       ],
     });
-    windowService = TestBed.get(NbWindowService);
-    overlayContainerService = TestBed.get(NbOverlayContainerAdapter);
-    document = TestBed.get(NB_DOCUMENT);
+    windowService = TestBed.inject(NbWindowService);
+    overlayContainerService = TestBed.inject(NbOverlayContainerAdapter);
+    document = TestBed.inject(NB_DOCUMENT);
   });
 
   beforeEach(() => {
@@ -183,4 +213,80 @@ describe('window-service', () => {
     firstWindow.componentRef.changeDetectorRef.detectChanges();
     expect(queryBackdrop().hasAttribute('hidden')).toBeFalsy();
   });
+
+  it(`shouldn't render window content when minimized`, function() {
+    const windowRef = windowService.open(NbTestWindowComponent);
+    windowRef.minimize();
+    windowRef.componentRef.changeDetectorRef.detectChanges();
+
+    const windowElement: HTMLElement = windowRef.componentRef.location.nativeElement;
+    expect(windowElement.querySelector('nb-card-body')).toBeNull();
+  });
+
+  it(`should render window content when unminimized`, function() {
+    const windowRef = windowService.open(NbTestWindowComponent);
+    windowRef.minimize();
+    windowRef.componentRef.changeDetectorRef.detectChanges();
+    windowRef.maximize();
+    windowRef.componentRef.changeDetectorRef.detectChanges();
+
+    const windowElement: HTMLElement = windowRef.componentRef.location.nativeElement;
+    expect(windowElement.querySelector('nb-card-body')).not.toBeNull();
+  });
+
+  it(`should render window content from template with context`, function() {
+    const fixture = TestBed.createComponent(NbTestWindowWithTemplateComponent);
+    fixture.detectChanges();
+
+    const windowRef = fixture.componentInstance.openWindow();
+    windowRef.componentRef.changeDetectorRef.detectChanges();
+    expect(windowRef.componentRef).toBeDefined();
+
+    const windowElement: ElementRef<HTMLElement> = windowRef.componentRef.injector.get(ElementRef);
+    expect(windowElement.nativeElement.innerText).toContain('Static text: hello world');
+  });
+
+  it(`should render window content from component without context`, function() {
+    const windowRef = windowService.open(TestWindowComponent);
+    windowRef.componentRef.changeDetectorRef.detectChanges();
+
+    const windowElement: ElementRef<HTMLElement> = windowRef.componentRef.injector.get(ElementRef);
+    expect(windowElement.nativeElement.innerText).toEqual('window content');
+  });
+
+  it(`should render window content from component with context`, function() {
+    const windowRef = windowService.open(TestWindowComponent, { context: { componentInput: 'hello world' }});
+    windowRef.componentRef.changeDetectorRef.detectChanges();
+
+    const windowElement: ElementRef<HTMLElement> = windowRef.componentRef.injector.get(ElementRef);
+    expect(windowElement.nativeElement.innerText).toEqual('window content hello world');
+  });
+
+  it('should create new window container when overlay container changed', fakeAsync(() => {
+    const fixture = TestBed.createComponent(NbTestWindowWithTemplateComponent);
+    fixture.detectChanges();
+
+    // Show window to force windows container creation
+    const windowRef = fixture.componentInstance.openWindow();
+    fixture.detectChanges();
+    flush();
+
+    windowRef.close();
+    fixture.detectChanges();
+    flush();
+
+    // Change overlay container
+    overlayContainerService.ngOnDestroy();
+    overlayContainerService.clearContainer();
+    overlayContainer = document.createElement('div');
+    overlayContainerService.setContainer(overlayContainer);
+    document.body.appendChild(overlayContainer);
+
+    windowService.open(TestWindowComponent);
+    fixture.detectChanges();
+    flush();
+
+    const windowContent = document.getElementById('window-content');
+    expect(document.body.contains(windowContent)).toEqual(true);
+  }));
 });

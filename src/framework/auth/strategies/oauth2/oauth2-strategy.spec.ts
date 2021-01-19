@@ -4,15 +4,15 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import { async, inject, TestBed } from '@angular/core/testing';
+import { inject, TestBed, waitForAsync } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { ActivatedRoute } from '@angular/router';
 import { NB_WINDOW } from '@nebular/theme';
 import { NbOAuth2AuthStrategy } from './oauth2-strategy';
 import { NbOAuth2ClientAuthMethod, NbOAuth2GrantType, NbOAuth2ResponseType } from './oauth2-strategy.options';
-import { NbAuthResult, nbAuthCreateToken, NbAuthOAuth2Token } from '../../services';
-
+import { NbAuthResult } from '../../services/auth-result';
+import { nbAuthCreateToken, NbAuthOAuth2Token } from '../../services/token/token';
 function createURL(params: any) {
   return Object.keys(params).map((k) => {
     return `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`;
@@ -71,10 +71,12 @@ describe('oauth2-auth-strategy', () => {
     error_uri: 'some',
   };
 
-  const successToken = nbAuthCreateToken(NbAuthOAuth2Token, tokenSuccessResponse, 'strategy') as NbAuthOAuth2Token;
-  // tslint:disable-next-line
-  const refreshedToken = nbAuthCreateToken(NbAuthOAuth2Token, refreshedTokenPayload, 'strategy') as NbAuthOAuth2Token;
-  const refreshedTokenWithRefreshToken = nbAuthCreateToken(NbAuthOAuth2Token, refreshedTokenResponse, 'strategy') as NbAuthOAuth2Token;
+  const successToken = nbAuthCreateToken(NbAuthOAuth2Token, tokenSuccessResponse,
+    'strategy') as NbAuthOAuth2Token;
+  const refreshedToken = nbAuthCreateToken(NbAuthOAuth2Token, refreshedTokenPayload,
+    'strategy') as NbAuthOAuth2Token;
+  const refreshedTokenWithRefreshToken = nbAuthCreateToken(NbAuthOAuth2Token, refreshedTokenResponse,
+    'strategy') as NbAuthOAuth2Token;
 
   beforeEach(() => {
     windowMock = { location: { href: '' } };
@@ -90,7 +92,7 @@ describe('oauth2-auth-strategy', () => {
     });
   });
 
-  beforeEach(async(inject(
+  beforeEach(waitForAsync(inject(
     [NbOAuth2AuthStrategy, HttpTestingController],
     (_strategy, _httpMock) => {
       strategy = _strategy;
@@ -145,12 +147,17 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/token'
-            && req.body['grant_type'] === NbOAuth2GrantType.AUTHORIZATION_CODE
-            && req.body['code'] === 'code'
-            && req.body['client_id'] === 'clientId'
-            && !req.body['redirect_uri'],
-      ).flush(tokenSuccessResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/token'
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.AUTHORIZATION_CODE
+            && decodeURIComponent(params['code']) === 'code'
+            && decodeURIComponent(params['client_id']) === 'clientId'
+            && !params['redirect_uri'])
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle error redirect back', (done: DoneFn) => {
@@ -187,7 +194,13 @@ describe('oauth2-auth-strategy', () => {
           done();
         });
 
-      httpMock.expectOne('http://example.com/token')
+        httpMock.expectOne(
+          req => {
+            return (req.url === 'http://example.com/token'
+              && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            )
+          },
+        )
         .flush(tokenErrorResponse, { status: 400, statusText: 'Bad Request' });
     });
 
@@ -211,12 +224,17 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/token'
-          && req.headers.get('Authorization') === authHeader
-          && req.body['grant_type'] === NbOAuth2GrantType.REFRESH_TOKEN
-          && req.body['refresh_token'] === successToken.getRefreshToken()
-          && !req.body['scope'],
-      ).flush(tokenSuccessResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/token'
+            && req.headers.get('Authorization') === authHeader
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.REFRESH_TOKEN
+            && decodeURIComponent(params['refresh_token']) === successToken.getRefreshToken()
+            && !params['scope'])
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle refresh token with requestBody client auth', (done: DoneFn) => {
@@ -239,13 +257,18 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/token'
-          && req.body['grant_type'] === NbOAuth2GrantType.REFRESH_TOKEN
-          && req.body['refresh_token'] === successToken.getRefreshToken()
-          && req.body['client_id'] === strategy.getOption('clientId')
-          && req.body['client_secret'] === strategy.getOption('clientSecret')
-          && !req.body['scope'],
-      ).flush(tokenSuccessResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/token'
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.REFRESH_TOKEN
+            && decodeURIComponent(params['refresh_token']) === successToken.getRefreshToken()
+            && decodeURIComponent(params['client_id']) === strategy.getOption('clientId')
+            && decodeURIComponent(params['client_secret']) === strategy.getOption('clientSecret')
+            && !params['scope'])
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle refresh token with NO client auth', (done: DoneFn) => {
@@ -264,11 +287,16 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/token'
-          && req.body['grant_type'] === NbOAuth2GrantType.REFRESH_TOKEN
-          && req.body['refresh_token'] === successToken.getRefreshToken()
-          && !req.body['scope'],
-      ).flush(tokenSuccessResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/token'
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.REFRESH_TOKEN
+            && decodeURIComponent(params['refresh_token']) === successToken.getRefreshToken()
+            && !params['scope'])
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle refresh token and inserts existing refresh_token if needed', (done: DoneFn) => {
@@ -287,11 +315,16 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/token'
-          && req.body['grant_type'] === NbOAuth2GrantType.REFRESH_TOKEN
-          && req.body['refresh_token'] === successToken.getRefreshToken()
-          && !req.body['scope'],
-      ).flush(tokenWithoutRefreshTokenResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/token'
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.REFRESH_TOKEN
+            && decodeURIComponent(params['refresh_token']) === successToken.getRefreshToken()
+            && !params['scope'])
+        },
+      )
+      .flush(tokenWithoutRefreshTokenResponse);
     });
 
     it('Handle refresh-token and leaves refresh_token unchanged if present', (done: DoneFn) => {
@@ -311,11 +344,16 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/token'
-          && req.body['grant_type'] === NbOAuth2GrantType.REFRESH_TOKEN
-          && req.body['refresh_token'] === successToken.getRefreshToken()
-          && !req.body['scope'],
-      ).flush(refreshedTokenResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/token'
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.REFRESH_TOKEN
+            && decodeURIComponent(params['refresh_token']) === successToken.getRefreshToken()
+            && !params['scope'])
+        },
+      )
+      .flush(refreshedTokenResponse);
     });
 
     it('handle error token refresh response', (done: DoneFn) => {
@@ -333,7 +371,13 @@ describe('oauth2-auth-strategy', () => {
           done();
         });
 
-      httpMock.expectOne('http://example.com/token')
+      httpMock.expectOne(
+          req => {
+            return (req.url === 'http://example.com/token'
+              && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            )
+          },
+        )
         .flush(tokenErrorResponse, { status: 400, statusText: 'Bad Request' });
     });
   });
@@ -468,12 +512,17 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/custom'
-          && req.body['grant_type'] === NbOAuth2GrantType.AUTHORIZATION_CODE
-          && req.body['code'] === 'code'
-          && req.body['client_id'] === 'clientId'
-          && req.body['redirect_uri'] === 'http://localhost:4200/callback',
-      ).flush(tokenSuccessResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/custom'
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.AUTHORIZATION_CODE
+            && decodeURIComponent(params['code']) === 'code'
+            && decodeURIComponent(params['client_id']) === 'clientId'
+            && decodeURIComponent(params['redirect_uri']) === 'http://localhost:4200/callback')
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle success redirect and sends correct token request with BASIC client Auth', (done: DoneFn) => {
@@ -498,13 +547,18 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/custom'
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/custom'
           && req.headers.get('Authorization') === authHeader
-          && req.body['grant_type'] === NbOAuth2GrantType.AUTHORIZATION_CODE
-          && req.body['code'] === 'code'
-          && req.body['client_id'] === 'clientId'
-          && req.body['redirect_uri'] === 'http://localhost:4200/callback',
-      ).flush(tokenSuccessResponse);
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.AUTHORIZATION_CODE
+            && decodeURIComponent(params['code']) === 'code'
+            && decodeURIComponent(params['client_id']) === 'clientId'
+            && decodeURIComponent(params['redirect_uri']) === 'http://localhost:4200/callback')
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle success redirect and sends correct token request with REQUEST_BODY client Auth', (done: DoneFn) => {
@@ -529,13 +583,18 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/custom'
-          && req.body['grant_type'] === NbOAuth2GrantType.AUTHORIZATION_CODE
-          && req.body['code'] === 'code'
-          && req.body['client_id'] === strategy.getOption('clientId')
-          && req.body['client_secret'] === strategy.getOption('clientSecret')
-          && req.body['redirect_uri'] === 'http://localhost:4200/callback',
-      ).flush(tokenSuccessResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/custom'
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.AUTHORIZATION_CODE
+            && decodeURIComponent(params['code']) === 'code'
+            && decodeURIComponent(params['client_id']) === strategy.getOption('clientId')
+            && decodeURIComponent(params['client_secret']) === strategy.getOption('clientSecret')
+            && decodeURIComponent(params['redirect_uri']) === 'http://localhost:4200/callback')
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle error redirect back', (done: DoneFn) => {
@@ -555,7 +614,10 @@ describe('oauth2-auth-strategy', () => {
         });
     });
     it('handle refresh token with NO client auth', (done: DoneFn) => {
-      strategy.setOptions(basicOptions);
+      strategy.setOptions({
+        ... basicOptions,
+        clientId: 'clientId',
+      });
 
       strategy.refreshToken(successToken)
         .subscribe((result: NbAuthResult) => {
@@ -571,11 +633,17 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/custom'
-          && req.body['grant_type'] === NbOAuth2GrantType.REFRESH_TOKEN
-          && req.body['refresh_token'] === successToken.getRefreshToken()
-          && req.body['scope'] === 'read',
-      ).flush(tokenSuccessResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/custom'
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.REFRESH_TOKEN
+            && decodeURIComponent(params['refresh_token']) === successToken.getRefreshToken()
+            && decodeURIComponent(params['scope']) === 'read'
+            && decodeURIComponent(params['client_id']) === 'clientId')
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle refresh token with BASIC client auth', (done: DoneFn) => {
@@ -599,12 +667,17 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/custom'
-          && req.headers.get('Authorization') === authHeader
-          && req.body['grant_type'] === NbOAuth2GrantType.REFRESH_TOKEN
-          && req.body['refresh_token'] === successToken.getRefreshToken()
-          && req.body['scope'] === 'read',
-      ).flush(tokenSuccessResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/custom'
+            && req.headers.get('Authorization') === authHeader
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.REFRESH_TOKEN
+            && decodeURIComponent(params['refresh_token']) === successToken.getRefreshToken()
+            && decodeURIComponent(params['scope']) === 'read')
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle refresh token with REQUEST_BODY client auth', (done: DoneFn) => {
@@ -628,13 +701,18 @@ describe('oauth2-auth-strategy', () => {
         });
 
       httpMock.expectOne(
-        req => req.url === 'http://example.com/custom'
-          && req.body['grant_type'] === NbOAuth2GrantType.REFRESH_TOKEN
-          && req.body['refresh_token'] === successToken.getRefreshToken()
-          && req.body['client_id'] === strategy.getOption('clientId')
-          && req.body['client_secret'] === strategy.getOption('clientSecret')
-          && req.body['scope'] === 'read',
-      ).flush(tokenSuccessResponse);
+        req => {
+          const params = parseQueryParams(req.body);
+          return (req.url === 'http://example.com/custom'
+            && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            && decodeURIComponent(params['grant_type']) === NbOAuth2GrantType.REFRESH_TOKEN
+            && decodeURIComponent(params['refresh_token']) === successToken.getRefreshToken()
+            && decodeURIComponent(params['client_id']) === strategy.getOption('clientId')
+            && decodeURIComponent(params['client_secret']) === strategy.getOption('clientSecret')
+            && decodeURIComponent(params['scope']) === 'read')
+        },
+      )
+      .flush(tokenSuccessResponse);
     });
 
     it('handle error token response', (done: DoneFn) => {
@@ -654,7 +732,13 @@ describe('oauth2-auth-strategy', () => {
           done();
         });
 
-      httpMock.expectOne('http://example.com/custom')
+      httpMock.expectOne(
+          req => {
+            return (req.url === 'http://example.com/custom'
+              && req.headers.get('Content-Type') === 'application/x-www-form-urlencoded'
+            )
+          },
+        )
         .flush(tokenErrorResponse, { status: 400, statusText: 'Bad Request' });
     });
   });

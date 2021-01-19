@@ -8,8 +8,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DatePipe } from '@angular/common';
 
 import { NbCalendarDayCellComponent } from './calendar-day-cell.component';
-import { NbDateService, NbNativeDateService } from '../../services';
-
+import { NbDateService } from '../../services/date.service';
+import { NbNativeDateService } from '../../services/native-date.service';
+import { NbCalendarKitModule } from '../../calendar-kit.module';
 
 describe('Component: NbCalendarDayCell', () => {
   let component: NbCalendarDayCellComponent<Date>;
@@ -19,16 +20,17 @@ describe('Component: NbCalendarDayCell', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
+      imports: [NbCalendarKitModule],
       providers: [DatePipe, NbNativeDateService, { provide: NbDateService, useExisting: NbNativeDateService }],
-      declarations: [NbCalendarDayCellComponent],
     });
     fixture = TestBed.createComponent<NbCalendarDayCellComponent<Date>>(NbCalendarDayCellComponent);
     component = fixture.componentInstance;
     componentEl = fixture.nativeElement;
-    dateService = TestBed.get(NbNativeDateService);
+    dateService = TestBed.inject(NbNativeDateService);
   });
 
   it('should contain cell class', () => {
+    fixture.detectChanges();
     expect(componentEl.classList).toContain('day-cell');
   });
 

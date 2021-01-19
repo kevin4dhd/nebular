@@ -17,7 +17,7 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        loadChildren: '../../../src/playground/playground.module#NbPlaygroundModule',
+        loadChildren: () => import('../../../src/playground/playground.module').then(m => m.PlaygroundModule),
       },
       {
         path: '**',

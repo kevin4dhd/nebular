@@ -11,6 +11,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
+            "aot": true,
             "outputPath": "dist",
             "index": "src/index.html",
             "main": "src/main.ts",
@@ -25,20 +26,22 @@
               "src/assets",
               "src/favicon.ico"
             ],
-            "styles": [
-              "node_modules/nebular-icons/scss/nebular-icons.scss",
-              "src/styles.scss"
-            ],
+            "styles": [],
             "scripts": []
           },
           "configurations": {
             "production": {
+              "budgets": [
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6kb"
+                }
+              ],
               "optimization": true,
               "outputHashing": "all",
               "sourceMap": false,
               "extractCss": true,
               "namedChunks": false,
-              "aot": true,
               "extractLicenses": true,
               "vendorChunk": false,
               "buildOptimizer": true,
@@ -76,10 +79,7 @@
             "polyfills": "src/polyfills.ts",
             "tsConfig": "src/tsconfig.spec.json",
             "scripts": [],
-            "styles": [
-              "node_modules/nebular-icons/scss/nebular-icons.scss",
-              "src/styles.scss"
-            ],
+            "styles": [],
             "assets": [
               "src/assets",
               "src/favicon.ico"
@@ -94,7 +94,9 @@
               "src/tsconfig.spec.json",
               "scripts/gulp/tsconfig.json"
             ],
-            "exclude": []
+            "exclude": [
+              "node_modules/**"
+            ]
           }
         }
       }
@@ -130,6 +132,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
+            "aot": true,
             "outputPath": "dist",
             "index": "src/index.html",
             "main": "src/main.ts",
@@ -144,20 +147,22 @@
               "src/assets",
               "src/favicon.ico"
             ],
-            "styles": [
-              "node_modules/nebular-icons/scss/nebular-icons.scss",
-              "src/styles.scss"
-            ],
+            "styles": [],
             "scripts": []
           },
           "configurations": {
             "production": {
+              "budgets": [
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6kb"
+                }
+              ],
               "optimization": true,
               "outputHashing": "all",
               "sourceMap": false,
               "extractCss": true,
               "namedChunks": false,
-              "aot": true,
               "extractLicenses": true,
               "vendorChunk": false,
               "buildOptimizer": true,
@@ -195,10 +200,7 @@
             "polyfills": "src/polyfills.ts",
             "tsConfig": "src/tsconfig.spec.json",
             "scripts": [],
-            "styles": [
-              "node_modules/nebular-icons/scss/nebular-icons.scss",
-              "src/styles.scss"
-            ],
+            "styles": [],
             "assets": [
               "src/assets",
               "src/favicon.ico"
@@ -248,6 +250,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
+            "aot": true,
             "outputPath": "docs/dist",
             "index": "docs/index.html",
             "main": "docs/main.ts",
@@ -258,27 +261,35 @@
               "docs/404.html",
               "docs/favicon.ico",
               "docs/favicon.png",
-              "docs/google46533d2e7a851062.html"
+              "docs/google46533d2e7a851062.html",
+              "docs/robots.txt",
+              { "glob": "versions.json", "input": "docs/", "output": "/" }
             ],
             "styles": [
+              "node_modules/pace-js/templates/pace-theme-flash.tmpl.css",
               "node_modules/bootstrap/dist/css/bootstrap.css",
               "node_modules/docsearch.js/dist/cdn/docsearch.min.css",
               "node_modules/highlight.js/styles/dracula.css",
-              "node_modules/nebular-icons/scss/nebular-icons.scss",
               "docs/app/@theme/styles/styles.scss"
             ],
             "scripts": [
+              "node_modules/pace-js/pace.min.js",
               "node_modules/docsearch.js/dist/cdn/docsearch.min.js"
             ]
           },
           "configurations": {
             "production": {
+              "budgets": [
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6kb"
+                }
+              ],
               "optimization": true,
               "outputHashing": "all",
               "sourceMap": false,
               "extractCss": true,
               "namedChunks": false,
-              "aot": true,
               "extractLicenses": true,
               "vendorChunk": false,
               "buildOptimizer": true,
@@ -319,7 +330,6 @@
             ],
             "styles": [
               "node_modules/highlight.js/styles/dracula.css",
-              "node_modules/nebular-icons/scss/nebular-icons.scss",
               "docs/app/@theme/styles/styles.scss"
             ],
             "assets": [
@@ -368,7 +378,7 @@
   "schematics": {
     "@schematics/angular:component": {
       "prefix": "app",
-      "styleext": "scss"
+      "style": "scss"
     },
     "@schematics/angular:directive": {
       "prefix": "app"

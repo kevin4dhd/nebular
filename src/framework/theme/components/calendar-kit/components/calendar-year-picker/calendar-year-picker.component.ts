@@ -14,13 +14,10 @@ import {
   Output,
   Type,
 } from '@angular/core';
-import { batch, range } from '../../helpers';
-import { NbCalendarCell, NbCalendarSize } from '../../model';
+import { NbCalendarCell, NbCalendarSize, NbCalendarSizeValues } from '../../model';
 import { NbCalendarYearCellComponent } from './calendar-year-cell.component';
-import { NbDateService } from '../../services';
-
-
-const defaultYearCount = 20;
+import { NbDateService } from '../../services/date.service';
+import { NbCalendarYearModelService } from '../../services/calendar-year-model.service';
 
 @Component({
   selector: 'nb-calendar-year-picker',
@@ -33,6 +30,7 @@ const defaultYearCount = 20;
       [selectedValue]="date"
       [visibleDate]="year"
       [cellComponent]="cellComponent"
+      [size]="size"
       (select)="onSelect($event)">
     </nb-calendar-picker>
   `,
@@ -57,42 +55,29 @@ export class NbCalendarYearPickerComponent<D> implements OnChanges {
   cellComponent: Type<NbCalendarCell<D, D>> = NbCalendarYearCellComponent;
 
   @Input() size: NbCalendarSize = NbCalendarSize.MEDIUM;
+  static ngAcceptInputType_size: NbCalendarSizeValues;
 
   @Input() year: D;
 
   @Output() yearChange = new EventEmitter<D>();
 
-  @HostBinding('class.medium')
-  get medium() {
-    return this.size === NbCalendarSize.MEDIUM;
-  }
-
-  @HostBinding('class.large')
+  @HostBinding('class.size-large')
   get large() {
     return this.size === NbCalendarSize.LARGE;
   }
 
   years: D[][];
 
-  constructor(protected dateService: NbDateService<D>) {
-  }
+  constructor(
+    protected dateService: NbDateService<D>,
+    protected yearModelService: NbCalendarYearModelService<D>,
+  ) {}
 
   ngOnChanges() {
-    this.initYears();
-  }
-
-  initYears() {
-    const selectedYear = this.dateService.getYear(this.year);
-    const startYear = Math.ceil(selectedYear - defaultYearCount / 2);
-    const years = range(defaultYearCount).map(i => this.createYearDateByIndex(i + startYear));
-    this.years = batch(years, 4);
+    this.years = this.yearModelService.getViewYears(this.year);
   }
 
   onSelect(year) {
     this.yearChange.emit(year);
-  }
-
-  private createYearDateByIndex(i: number): D {
-    return this.dateService.createDate(i, this.dateService.getMonth(this.year), this.dateService.getDate(this.year));
   }
 }

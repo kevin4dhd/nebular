@@ -1,14 +1,7 @@
-import {
-  Component,
-  forwardRef,
-  Inject,
-  Input,
-  TemplateRef,
-  ViewChild,
-} from '@angular/core';
-import { AbstractControl } from '@angular/forms';
+import { Component, Inject, Input, TemplateRef, ViewChild } from '@angular/core';
 import { NbStepperComponent } from './stepper.component';
-import { convertToBoolProperty } from '../helpers';
+import { NB_STEPPER } from './stepper-tokens';
+import { convertToBoolProperty, NbBooleanInput } from '../helpers';
 
 /**
  * Component intended to be used within  the `<nb-stepper>` component.
@@ -24,19 +17,20 @@ import { convertToBoolProperty } from '../helpers';
 })
 export class NbStepComponent {
 
+  protected stepper: NbStepperComponent;
+
+  // TODO static must be false as of Angular 9.0.0, issues/1514
   /**
    * Step content
    *
    * @type {TemplateRef}
    */
-  @ViewChild(TemplateRef) content: TemplateRef<any>;
+  @ViewChild(TemplateRef, { static: true }) content: TemplateRef<any>;
 
   /**
    * Top level abstract control of the step
-   *
-   * @type {AbstractControl}
    */
-  @Input() stepControl: AbstractControl;
+  @Input() stepControl?: { valid: boolean | null, reset: () => void };
 
   /**
    * Step label
@@ -50,7 +44,15 @@ export class NbStepComponent {
    *
    * @type {boolean}
    */
-  @Input() hidden: false;
+  @Input()
+  get hidden(): boolean {
+    return this._hidden;
+  }
+  set hidden(value: boolean) {
+    this._hidden = convertToBoolProperty(value);
+  }
+  protected _hidden = false;
+  static ngAcceptInputType_hidden: NbBooleanInput;
 
   /**
    * Check that label is a TemplateRef.
@@ -68,22 +70,22 @@ export class NbStepComponent {
    */
   @Input()
   get completed(): boolean {
-    return this.completedValue || this.isCompleted;
+    return this._completed || this.isCompleted;
   }
-
   set completed(value: boolean) {
-    this.completedValue = convertToBoolProperty(value);
+    this._completed = convertToBoolProperty(value);
   }
+  protected _completed: boolean = false;
+  static ngAcceptInputType_completed: NbBooleanInput;
 
-  private completedValue: boolean = false;
-
-  private get isCompleted() {
+  protected get isCompleted() {
     return this.stepControl ? this.stepControl.valid && this.interacted : this.interacted;
   }
 
   interacted = false;
 
-  constructor(@Inject(forwardRef(() => NbStepperComponent)) private stepper: NbStepperComponent) {
+  constructor(@Inject(NB_STEPPER) stepper) {
+    this.stepper = stepper;
   }
 
   /**

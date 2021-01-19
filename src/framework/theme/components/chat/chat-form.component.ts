@@ -16,6 +16,8 @@ import {
 } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 
+import { NbComponentOrCustomStatus } from '../component-status';
+
 /**
  * Chat form component.
  *
@@ -43,14 +45,6 @@ import { DomSanitizer } from '@angular/platform-browser';
  *   this.service.sendToServer(message, files);
  * }
  * ```
- *
- * @styles
- *
- * chat-form-bg:
- * chat-form-fg:
- * chat-form-border:
- * chat-form-active-border:
- *
  */
 @Component({
   selector: 'nb-chat-form',
@@ -60,25 +54,44 @@ import { DomSanitizer } from '@angular/platform-browser';
         <div *ngIf="file.urlStyle" [style.background-image]="file.urlStyle">
           <span class="remove" (click)="removeFile(file)">&times;</span>
         </div>
-        <div *ngIf="!file.urlStyle" class="nb-compose">
+
+        <div>
+          <nb-icon *ngIf="!file.urlStyle" icon="file-text-outline" pack="nebular-essentials"></nb-icon>
           <span class="remove" (click)="removeFile(file)">&times;</span>
         </div>
       </ng-container>
     </div>
     <div class="message-row">
-      <input [(ngModel)]="message"
+      <input nbInput
+             fullWidth
+             [status]="getInputStatus()"
+             (focus)="inputFocus = true"
+             (blur)="inputFocus = false"
+             (mouseenter)="inputHover = true"
+             (mouseleave)="inputHover = false"
+             [(ngModel)]="message"
              [class.with-button]="showButton"
              type="text"
-             placeholder="{{ fileOver ? 'Drop file to send' : 'Type a message' }}"
+             placeholder="{{ fileOver ? dropFilePlaceholder : messagePlaceholder }}"
              (keyup.enter)="sendMessage()">
-      <button *ngIf="showButton" class="btn" [class.with-icon]="!buttonTitle" (click)="sendMessage()">
-        {{ buttonTitle }}<span *ngIf="!buttonTitle" [class]="buttonIcon"></span>
+      <button nbButton
+              [status]="getButtonStatus()"
+              *ngIf="showButton"
+              [class.with-icon]="!buttonTitle"
+              (click)="sendMessage()"
+              class="send-button">
+        <nb-icon *ngIf="!buttonTitle; else title" [icon]="buttonIcon" pack="nebular-essentials"></nb-icon>
+        <ng-template #title>{{ buttonTitle }}</ng-template>
       </button>
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NbChatFormComponent {
+
+  status: NbComponentOrCustomStatus = 'basic';
+  inputFocus: boolean = false;
+  inputHover: boolean = false;
 
   droppedFiles: any[] = [];
   imgDropTypes = ['image/png', 'image/jpeg', 'image/gif'];
@@ -90,6 +103,11 @@ export class NbChatFormComponent {
   @Input() message: string = '';
 
   /**
+   * Message placeholder text
+   * @type {string}
+   */
+  @Input() messagePlaceholder: string = 'Type a message';
+  /**
    * Send button title
    * @type {string}
    */
@@ -99,7 +117,7 @@ export class NbChatFormComponent {
    * Send button icon, shown if `buttonTitle` is empty
    * @type {string}
    */
-  @Input() buttonIcon: string = 'nb-paper-plane';
+  @Input() buttonIcon: string = 'paper-plane-outline';
 
   /**
    * Show send button
@@ -114,6 +132,12 @@ export class NbChatFormComponent {
   @Input() dropFiles: boolean = false;
 
   /**
+   * File drop placeholder text
+   * @type {string}
+   */
+  @Input() dropFilePlaceholder: string = 'Drop file to send';
+
+  /**
    *
    * @type {EventEmitter<{ message: string, files: File[] }>}
    */
@@ -121,7 +145,7 @@ export class NbChatFormComponent {
 
   @HostBinding('class.file-over') fileOver = false;
 
-  constructor(private cd: ChangeDetectorRef, private domSanitizer: DomSanitizer) {
+  constructor(protected cd: ChangeDetectorRef, protected domSanitizer: DomSanitizer) {
   }
 
   @HostListener('drop', ['$event'])
@@ -133,8 +157,7 @@ export class NbChatFormComponent {
       this.fileOver = false;
       if (event.dataTransfer && event.dataTransfer.files) {
 
-        // tslint:disable-next-line
-        for (let file of event.dataTransfer.files) {
+        for (const file of event.dataTransfer.files) {
           const res = file;
 
           if (this.imgDropTypes.includes(file.type)) {
@@ -180,5 +203,36 @@ export class NbChatFormComponent {
       this.message = '';
       this.droppedFiles = [];
     }
+  }
+
+  setStatus(status: NbComponentOrCustomStatus): void {
+    if (this.status !== status) {
+      this.status = status;
+      this.cd.detectChanges();
+    }
+  }
+
+  getInputStatus(): NbComponentOrCustomStatus {
+    if (this.fileOver) {
+      return this.getHighlightStatus();
+    }
+
+    if (this.inputFocus || this.inputHover) {
+      return this.status;
+    }
+
+    return 'basic';
+  }
+
+  getButtonStatus(): NbComponentOrCustomStatus {
+    return this.getHighlightStatus();
+  }
+
+  protected getHighlightStatus(): NbComponentOrCustomStatus {
+    if (this.status === 'basic' || this.status === 'control') {
+      return 'primary';
+    }
+
+    return this.status;
   }
 }

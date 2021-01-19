@@ -2,11 +2,15 @@
 
 @include nb-install-component() {
 
+  .header-card .page-heading {
+    margin-bottom: 0;
+  }
+
   .components-list {
     display: flex;
     flex-wrap: wrap;
 
-    h2 {
+    .group-title {
       flex: 1 1 100%;
       color: nb-theme(color-fg-heading-light);
       margin: 1rem 0 2rem;
@@ -19,11 +23,13 @@
 
     .component-icon {
       margin-bottom: 1rem;
+      height: 4rem;
+      width: auto;
     }
 
     .component-name {
       color: nb-theme(color-fg-heading-light);
-      font-weight: nb-theme(font-weight-bolder);
+      font-weight: 500;
     }
 
     .component-navigate-link {
@@ -68,6 +74,7 @@
 
   @include media-breakpoint-up(md) {
     .components-list {
+      margin: 0 -1.5rem;
 
       .component-card-wrapper {
         flex: 1 0 auto;

@@ -9,7 +9,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
 import { NbCalendarMonthPickerComponent } from './calendar-month-picker.component';
-import { NbDateService, NbNativeDateService } from '../../services';
+import { NbDateService } from '../../services/date.service';
+import { NbNativeDateService } from '../../services/native-date.service';
 import { NbCalendarMonthCellComponent } from './calendar-month-cell.component';
 import { DatePipe } from '@angular/common';
 
@@ -43,5 +44,18 @@ describe('Component: NbCalendarMonthPicker', () => {
     componentEl.query(By.css('nb-calendar-picker'))
       .nativeElement
       .dispatchEvent(new CustomEvent('select'));
-  })
+  });
+
+  it('should not have duplicate months', () => {
+    component.month = new Date(2019, 0, 30);
+    component.initMonths();
+
+    let expectedMonthIndex = 0;
+    for (const monthRow of component.months) {
+      for (const month of monthRow) {
+        expect(month.getMonth()).toEqual(expectedMonthIndex);
+        expectedMonthIndex++;
+      }
+    }
+  });
 });

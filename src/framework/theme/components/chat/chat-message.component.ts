@@ -5,9 +5,11 @@
  */
 
 import { ChangeDetectionStrategy, Component, HostBinding, Input } from '@angular/core';
-import { convertToBoolProperty } from '../helpers';
+import { convertToBoolProperty, NbBooleanInput } from '../helpers';
 import { DomSanitizer, SafeStyle } from '@angular/platform-browser';
 import { animate, state, style, transition, trigger } from '@angular/animations';
+
+import { NbChatMessageFile } from './chat-message-file.component';
 
 /**
  * Chat message component.
@@ -42,21 +44,21 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
  *
  * @styles
  *
- * chat-message-fg:
- * chat-message-bg:
- * chat-message-reply-bg:
- * chat-message-reply-fg:
- * chat-message-avatar-bg:
- * chat-message-sender-fg:
- * chat-message-quote-fg:
- * chat-message-quote-bg:
- * chat-message-file-fg:
- * chat-message-file-bg:
+ * chat-message-background:
+ * chat-message-text-color:
+ * chat-message-reply-background-color:
+ * chat-message-reply-text-color:
+ * chat-message-avatar-background-color:
+ * chat-message-sender-text-color:
+ * chat-message-quote-background-color:
+ * chat-message-quote-text-color:
+ * chat-message-file-text-color:
+ * chat-message-file-background-color:
  */
 @Component({
   selector: 'nb-chat-message',
   template: `
-    <div class="avatar" [style.background-image]="avatarStyle" *ngIf="!replyValue">
+    <div class="avatar" [style.background-image]="avatarStyle" *ngIf="!reply">
       <ng-container *ngIf="!avatarStyle">
         {{ getInitials() }}
       </ng-container>
@@ -65,11 +67,13 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
       <ng-container [ngSwitch]="type">
 
         <nb-chat-message-file *ngSwitchCase="'file'"
-                              [sender]="sender" [date]="date" [message]="message" [files]="files">
+                              [sender]="sender" [date]="date" [dateFormat]="dateFormat"
+                              [message]="message" [files]="files">
         </nb-chat-message-file>
 
         <nb-chat-message-quote *ngSwitchCase="'quote'"
-                              [sender]="sender" [date]="date" [message]="message" [quote]="quote">
+                              [sender]="sender" [date]="date" [dateFormat]="dateFormat"
+                              [message]="message" [quote]="quote">
         </nb-chat-message-quote>
 
         <nb-chat-message-map *ngSwitchCase="'map'"
@@ -78,7 +82,8 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
         </nb-chat-message-map>
 
         <nb-chat-message-text *ngSwitchDefault
-                              [sender]="sender" [date]="date" [message]="message">
+                              [sender]="sender" [date]="date" [dateFormat]="dateFormat"
+                              [message]="message">
         </nb-chat-message-text>
       </ng-container>
     </div>
@@ -105,12 +110,9 @@ export class NbChatMessageComponent {
     return true;
   }
 
-  @HostBinding('class.reply')
-  replyValue: boolean = false;
-
   @HostBinding('class.not-reply')
   get notReply() {
-    return !this.replyValue;
+    return !this.reply;
   }
 
   avatarStyle: SafeStyle;
@@ -119,9 +121,15 @@ export class NbChatMessageComponent {
    * Determines if a message is a reply
    */
   @Input()
-  set reply(val: boolean) {
-    this.replyValue = convertToBoolProperty(val);
+  @HostBinding('class.reply')
+  get reply(): boolean {
+    return this._reply;
   }
+  set reply(value: boolean) {
+    this._reply = convertToBoolProperty(value);
+  }
+  protected _reply: boolean = false;
+  static ngAcceptInputType_reply: NbBooleanInput;
 
   /**
    * Message sender
@@ -142,10 +150,15 @@ export class NbChatMessageComponent {
   @Input() date: Date;
 
   /**
-   * Array of files `{ url: 'file url', icon: 'file icon class' }`
+   * Message send date format, default 'shortTime'
    * @type {string}
    */
-  @Input() files: { url: string, icon: string }[];
+  @Input() dateFormat: string;
+
+  /**
+   * Array of files `{ url: 'file url', icon: 'file icon class' }`
+   */
+  @Input() files: NbChatMessageFile[];
 
   /**
    * Quoted message text
@@ -180,7 +193,7 @@ export class NbChatMessageComponent {
    */
   @Input() type: string;
 
-  constructor(private domSanitizer: DomSanitizer) { }
+  constructor(protected domSanitizer: DomSanitizer) { }
 
   getInitials(): string {
     if (this.sender) {

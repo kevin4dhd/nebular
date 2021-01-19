@@ -4,14 +4,14 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import { async, inject, TestBed } from '@angular/core/testing';
+import { inject, TestBed, waitForAsync } from '@angular/core/testing';
 import { NbPasswordAuthStrategy } from './password-strategy';
 import { NbAuthResult } from '../../services/auth-result';
 
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
-import { nbAuthCreateToken, NbAuthSimpleToken } from '../../services';
+import { nbAuthCreateToken, NbAuthSimpleToken } from '../../services/token/token';
 
 const ownerStrategyName = 'strategy';
 
@@ -51,7 +51,7 @@ describe('password-auth-strategy', () => {
     });
   });
 
-  beforeEach(async(inject(
+  beforeEach(waitForAsync(inject(
     [NbPasswordAuthStrategy, HttpTestingController],
     (_strategy, _httpMock) => {
       strategy = _strategy;
@@ -587,6 +587,28 @@ describe('password-auth-strategy', () => {
 
       httpMock.expectOne('/api/auth/custom/logout')
         .flush(successResponse);
+    });
+
+    it('logout with no endpoint', (done: DoneFn) => {
+
+      strategy.setOptions({
+        name: ownerStrategyName,
+        baseEndpoint: '/api/auth/custom/',
+        logout: {
+          endpoint: '',
+        },
+      });
+
+      strategy.logout()
+        .subscribe((result: NbAuthResult) => {
+          expect(result).toBeTruthy();
+          expect(result.isFailure()).toBe(false);
+          expect(result.isSuccess()).toBe(true);
+
+          done();
+        });
+
+      httpMock.expectNone('/api/auth/custom/');
     });
 
     it('refreshToken', (done: DoneFn) => {

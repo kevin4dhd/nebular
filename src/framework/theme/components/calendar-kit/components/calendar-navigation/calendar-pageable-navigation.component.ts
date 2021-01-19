@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  */
 
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Output } from '@angular/core';
 
 import { NbLayoutDirectionService } from '../../../../services/direction.service';
 
@@ -13,22 +13,19 @@ import { NbLayoutDirectionService } from '../../../../services/direction.service
   selector: 'nb-calendar-pageable-navigation',
   styleUrls: ['./calendar-pageable-navigation.component.scss'],
   template: `
-    <i [ngClass]="{'nb-arrow-left': isLtr, 'nb-arrow-right': isRtl }" (click)="prev.emit()"></i>
-    <nb-calendar-navigation [date]="date" (changeMode)="changeMode.emit()"></nb-calendar-navigation>
-    <i [ngClass]="{'nb-arrow-right': isLtr, 'nb-arrow-left': isRtl }" (click)="next.emit()"></i>
+    <button nbButton (click)="prev.emit()" ghost status="basic" class="prev-month">
+      <nb-icon [icon]="isLtr ? 'chevron-left-outline' : 'chevron-right-outline'" pack="nebular-essentials"></nb-icon>
+    </button>
+    <button nbButton (click)="next.emit()" ghost status="basic" class="next-month">
+      <nb-icon [icon]="isLtr ? 'chevron-right-outline' : 'chevron-left-outline'" pack="nebular-essentials"></nb-icon>
+    </button>
   `,
 })
 export class NbCalendarPageableNavigationComponent<D> {
-  @Input() date: D;
-  @Output() changeMode = new EventEmitter<void>();
   @Output() next = new EventEmitter<void>();
   @Output() prev = new EventEmitter<void>();
 
   constructor(private directionService: NbLayoutDirectionService) {
-  }
-
-  get isRtl(): boolean {
-    return this.directionService.isRtl();
   }
 
   get isLtr(): boolean {

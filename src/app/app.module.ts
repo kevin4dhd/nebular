@@ -12,11 +12,12 @@ import { HttpClientModule } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NbThemeModule } from '@nebular/theme';
 
-import { NbAppComponent } from './app.component';
-import { NbLayoutDirectionToggleComponent } from './layout-direction-toggle/layout-direction-toggle.component';
-import { NbDynamicToAddComponent } from '../playground/shared/dynamic.component';
-import { NbPlaygroundSharedModule } from '../playground/shared/shared.module';
-import { NbLayoutThemeToggleComponent } from './layout-theme-toggle/layout-theme-toggle.component';
+import { AppComponent } from './app.component';
+import { LayoutDirectionToggleComponent } from './layout-direction-toggle/layout-direction-toggle.component';
+import { LayoutThemeToggleComponent } from './layout-theme-toggle/layout-theme-toggle.component';
+import { ComponentsOverlayComponent } from './components-list/components-overlay.component';
+import { ComponentsListComponent} from './components-list/components-list.component';
+import { NbEvaIconsModule } from '@nebular/eva-icons';
 
 @NgModule({
   imports: [
@@ -27,21 +28,19 @@ import { NbLayoutThemeToggleComponent } from './layout-theme-toggle/layout-theme
     RouterModule.forRoot([
       {
         path: '',
-        loadChildren: '../playground/playground.module#NbPlaygroundModule',
+        loadChildren: () => import('../playground/playground.module').then(m => m.PlaygroundModule),
       },
-    ], { useHash: true }),
+    ], { useHash: true, relativeLinkResolution: 'legacy' }),
     NbThemeModule.forRoot(),
-    NbPlaygroundSharedModule,
+    NbEvaIconsModule,
   ],
   declarations: [
-    NbAppComponent,
-    NbLayoutDirectionToggleComponent,
-    NbLayoutThemeToggleComponent,
+    AppComponent,
+    LayoutDirectionToggleComponent,
+    LayoutThemeToggleComponent,
+    ComponentsOverlayComponent,
+    ComponentsListComponent,
   ],
-  entryComponents: [
-    NbDynamicToAddComponent,
-  ],
-  bootstrap: [NbAppComponent],
+  bootstrap: [ AppComponent ],
 })
-export class NbAppModule {
-}
+export class AppModule {}

@@ -1,10 +1,7 @@
 {
   "name": "@nebular/security",
-  "version": "2.0.1",
+  "version": "7.0.0",
   "description": "@nebular/security",
-  "main": "./bundles/security.umd.js",
-  "module": "./index.js",
-  "typings": "./index.d.ts",
   "author": "akveo",
   "license": "MIT",
   "repository": {
@@ -29,9 +26,11 @@
     "nebular"
   ],
   "peerDependencies": {
-    "@angular/common": "^6.0.0",
-    "@angular/core": "^6.0.0",
-    "@angular/router": "^6.0.0",
-    "rxjs": "^6.1.0"
-  }
+    "@angular/common": "^11.0.0",
+    "@angular/core": "^11.0.0",
+    "@angular/router": "^11.0.0",
+    "rxjs": "^6.5.4",
+    "tslib": "^2.0.0"
+  },
+  "sideEffects": false
 }

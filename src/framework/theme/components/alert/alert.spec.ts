@@ -5,7 +5,8 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { NbAlertComponent } from './alert.component';
+
+import { NbAlertComponent, NbAlertModule, NbThemeModule } from '@nebular/theme';
 
 describe('Component: NbAlert', () => {
 
@@ -14,7 +15,7 @@ describe('Component: NbAlert', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [NbAlertComponent],
+      imports: [ NbThemeModule.forRoot(), NbAlertModule ],
     });
 
     fixture = TestBed.createComponent(NbAlertComponent);
@@ -26,7 +27,7 @@ describe('Component: NbAlert', () => {
     fixture.detectChanges();
     expect(
       fixture
-        .debugElement.nativeElement.classList.contains('danger-alert'))
+        .debugElement.nativeElement.classList.contains('status-danger'))
       .toBeTruthy()
   });
 
@@ -49,11 +50,11 @@ describe('Component: NbAlert', () => {
   });
 
   it('should set size class', () => {
-    alert.size = 'xxsmall';
+    alert.size = 'small';
     fixture.detectChanges();
     expect(
       fixture
-        .debugElement.nativeElement.classList.contains('xxsmall-alert'))
+        .debugElement.nativeElement.classList.contains('size-small'))
       .toBeTruthy()
   });
 });
